@@ -1,0 +1,18 @@
+{
+  "telegram": {
+    "botToken": ""
+  },
+  "access": {
+    "allowedUserIds": []
+  },
+  "claude": {
+    "command": "claude"
+  },
+  "logging": {
+    "level": "info"
+  },
+  "rateLimit": {
+    "max": 10,
+    "windowMs": 60000
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "name": "ccpa-telegram",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "ccpa-telegram": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/cli.ts start --cwd examples/basic",
+    "start": "tsx src/cli.ts start --cwd examples/basic",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "telegram",
+    "claude",
+    "bot",
+    "ai",
+    "assistant"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Telegram bot that invokes Claude Code as a personal assistant",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "grammy": "^1.39.2",
+    "pino": "^10.2.0",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.8",
+    "pino-pretty": "^13.1.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
