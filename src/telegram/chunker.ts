@@ -65,7 +65,7 @@ export function chunkMessage(text: string): string[] {
  */
 export async function sendChunkedResponse(
   ctx: Context,
-  text: string
+  text: string,
 ): Promise<void> {
   const chunks = chunkMessage(text);
 
@@ -90,7 +90,7 @@ export async function sendChunkedResponse(
       // If Markdown fails, try without parsing
       try {
         await ctx.reply(chunk);
-      } catch (error) {
+      } catch (_error) {
         // Last resort: send error message
         await ctx.reply(`Error sending message part ${i + 1}`);
       }

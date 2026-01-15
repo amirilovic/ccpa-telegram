@@ -1,26 +1,33 @@
-import { Bot } from "grammy";
 import { execSync } from "node:child_process";
-import { getConfig, getWorkingDirectory } from "./config.js";
-import { initLogger, getLogger } from "./logger.js";
+import { Bot } from "grammy";
+import { clearHandler } from "./bot/commands/clear.js";
+import { helpHandler } from "./bot/commands/help.js";
+import { startHandler } from "./bot/commands/start.js";
+import {
+  documentHandler,
+  photoHandler,
+  textHandler,
+} from "./bot/handlers/index.js";
 import { authMiddleware } from "./bot/middleware/auth.js";
 import { rateLimitMiddleware } from "./bot/middleware/rateLimit.js";
-import { startHandler } from "./bot/commands/start.js";
-import { helpHandler } from "./bot/commands/help.js";
-import { clearHandler } from "./bot/commands/clear.js";
-import { textHandler, photoHandler, documentHandler } from "./bot/handlers/index.js";
+import { getConfig, getWorkingDirectory } from "./config.js";
+import { getLogger, initLogger } from "./logger.js";
 
 /**
  * Check if the Claude CLI command is available
  */
-function checkClaudeCommand(command: string, logger: ReturnType<typeof getLogger>): void {
+function checkClaudeCommand(
+  command: string,
+  logger: ReturnType<typeof getLogger>,
+): void {
   try {
     execSync(`${command} --version`, { stdio: "pipe" });
   } catch {
     logger.fatal(
       { command },
       `Claude CLI command "${command}" not found or not executable. ` +
-      `Please ensure Claude Code is installed and the command is in your PATH. ` +
-      `You can also set a custom command in ccpa.config.json under "claude.command".`
+        `Please ensure Claude Code is installed and the command is in your PATH. ` +
+        `You can also set a custom command in ccpa.config.json under "claude.command".`,
     );
     process.exit(1);
   }
@@ -74,7 +81,7 @@ export async function startBot(): Promise<void> {
     await bot.stop();
     logger.info("Bot stopped");
     process.exit(0);
-}
+  }
 
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
@@ -82,7 +89,7 @@ export async function startBot(): Promise<void> {
   // Start bot
   logger.info(
     { allowedUsers: config.access.allowedUserIds.length },
-    "Starting Telegram Claude Bot"
+    "Starting Telegram Claude Bot",
   );
 
   await bot.start({

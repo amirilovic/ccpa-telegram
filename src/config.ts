@@ -1,6 +1,6 @@
-import { config as dotenvConfig } from "dotenv";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { config as dotenvConfig } from "dotenv";
 import { z } from "zod";
 import { getLogger } from "./logger.js";
 
@@ -52,25 +52,42 @@ const ConfigSchema = z.object({
 });
 
 // Schema for the config file (all fields optional)
-const ConfigFileSchema = z.object({
-  telegram: z.object({
-    botToken: z.string(),
-  }).partial().optional(),
-  access: z.object({
-    allowedUserIds: z.array(z.number()),
-  }).partial().optional(),
-  dataDir: z.string().optional(),
-  rateLimit: z.object({
-    max: z.number().positive(),
-    windowMs: z.number().positive(),
-  }).partial().optional(),
-  logging: z.object({
-    level: z.enum(["debug", "info", "warn", "error"]),
-  }).partial().optional(),
-  claude: z.object({
-    command: z.string(),
-  }).partial().optional(),
-}).partial();
+const ConfigFileSchema = z
+  .object({
+    telegram: z
+      .object({
+        botToken: z.string(),
+      })
+      .partial()
+      .optional(),
+    access: z
+      .object({
+        allowedUserIds: z.array(z.number()),
+      })
+      .partial()
+      .optional(),
+    dataDir: z.string().optional(),
+    rateLimit: z
+      .object({
+        max: z.number().positive(),
+        windowMs: z.number().positive(),
+      })
+      .partial()
+      .optional(),
+    logging: z
+      .object({
+        level: z.enum(["debug", "info", "warn", "error"]),
+      })
+      .partial()
+      .optional(),
+    claude: z
+      .object({
+        command: z.string(),
+      })
+      .partial()
+      .optional(),
+  })
+  .partial();
 
 export type Config = z.infer<typeof ConfigSchema>;
 
@@ -82,7 +99,7 @@ function parseAllowedUserIds(value: string | undefined): number[] {
     .filter((id) => id.length > 0)
     .map((id) => {
       const num = parseInt(id, 10);
-      if (isNaN(num)) {
+      if (Number.isNaN(num)) {
         throw new Error(`Invalid user ID: ${id}`);
       }
       return num;
@@ -102,7 +119,10 @@ function loadConfigFile(): z.infer<typeof ConfigFileSchema> {
     const result = ConfigFileSchema.safeParse(parsed);
 
     if (!result.success) {
-      getLogger().error({ error: result.error.format() }, "Invalid ccpa.config.json");
+      getLogger().error(
+        { error: result.error.format() },
+        "Invalid ccpa.config.json",
+      );
       return {};
     }
 
@@ -121,34 +141,39 @@ export function loadConfig(): Config {
   // Build config with file values as defaults, env vars as overrides
   const rawConfig = {
     telegram: {
-      botToken: process.env.TELEGRAM_BOT_TOKEN || fileConfig.telegram?.botToken || "",
+      botToken:
+        process.env.TELEGRAM_BOT_TOKEN || fileConfig.telegram?.botToken || "",
     },
     access: {
       allowedUserIds: process.env.ALLOWED_USER_IDS
         ? parseAllowedUserIds(process.env.ALLOWED_USER_IDS)
-        : (fileConfig.access?.allowedUserIds || []),
+        : fileConfig.access?.allowedUserIds || [],
     },
     dataDir: process.env.DATA_DIR || fileConfig.dataDir || ".ccpa/users",
     rateLimit: {
       max: process.env.RATE_LIMIT_MAX
         ? parseInt(process.env.RATE_LIMIT_MAX, 10)
-        : (fileConfig.rateLimit?.max || 10),
+        : fileConfig.rateLimit?.max || 10,
       windowMs: process.env.RATE_LIMIT_WINDOW_MS
         ? parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10)
-        : (fileConfig.rateLimit?.windowMs || 60000),
+        : fileConfig.rateLimit?.windowMs || 60000,
     },
     logging: {
       level: process.env.LOG_LEVEL || fileConfig.logging?.level || "info",
     },
     claude: {
-      command: process.env.CLAUDE_COMMAND || fileConfig.claude?.command || "claude",
+      command:
+        process.env.CLAUDE_COMMAND || fileConfig.claude?.command || "claude",
     },
   };
 
   const result = ConfigSchema.safeParse(rawConfig);
 
   if (!result.success) {
-    getLogger().error({ error: result.error.format() }, "Configuration validation failed");
+    getLogger().error(
+      { error: result.error.format() },
+      "Configuration validation failed",
+    );
     process.exit(1);
   }
 

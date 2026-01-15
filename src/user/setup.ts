@@ -1,6 +1,6 @@
-import { mkdir, access, rm, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { constants } from "node:fs";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 interface SessionData {
   currentSessionId: string | null;
@@ -50,7 +50,10 @@ export function getUploadsPath(userDir: string): string {
 /**
  * Save session ID for a user
  */
-export async function saveSessionId(userDir: string, sessionId: string): Promise<void> {
+export async function saveSessionId(
+  userDir: string,
+  sessionId: string,
+): Promise<void> {
   const sessionFile = join(userDir, "session.json");
   const sessionData: SessionData = { currentSessionId: sessionId };
   await writeFile(sessionFile, JSON.stringify(sessionData, null, 2), "utf-8");

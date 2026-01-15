@@ -1,12 +1,17 @@
-import type { Context } from "grammy";
-import { join, resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
-import { getConfig } from "../../config.js";
-import { getLogger } from "../../logger.js";
-import { ensureUserSetup, getSessionId, saveSessionId, getUploadsPath } from "../../user/setup.js";
+import { join, resolve } from "node:path";
+import type { Context } from "grammy";
 import { executeClaudeQuery } from "../../claude/executor.js";
 import { parseClaudeOutput } from "../../claude/parser.js";
+import { getConfig } from "../../config.js";
+import { getLogger } from "../../logger.js";
 import { sendChunkedResponse } from "../../telegram/chunker.js";
+import {
+  ensureUserSetup,
+  getSessionId,
+  getUploadsPath,
+  saveSessionId,
+} from "../../user/setup.js";
 
 /**
  * Handle photo messages
@@ -54,7 +59,9 @@ export async function photoHandler(ctx: Context): Promise<void> {
     const prompt = `Please look at the image file "./uploads/${imageName}" and ${caption}`;
     const sessionId = await getSessionId(userDir);
 
-    const statusMsg = await ctx.reply("_Processing..._", { parse_mode: "Markdown" });
+    const statusMsg = await ctx.reply("_Processing..._", {
+      parse_mode: "Markdown",
+    });
     let lastProgressUpdate = Date.now();
     let lastProgressText = "Processing...";
 
@@ -68,7 +75,7 @@ export async function photoHandler(ctx: Context): Promise<void> {
             ctx.chat!.id,
             statusMsg.message_id,
             `_${message}_`,
-            { parse_mode: "Markdown" }
+            { parse_mode: "Markdown" },
           );
         } catch {
           // Ignore edit errors
@@ -99,7 +106,8 @@ export async function photoHandler(ctx: Context): Promise<void> {
     await sendChunkedResponse(ctx, parsed.text);
   } catch (error) {
     logger.error({ error }, "Photo handler error");
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await ctx.reply(`An error occurred processing the image: ${errorMessage}`);
   }
 }

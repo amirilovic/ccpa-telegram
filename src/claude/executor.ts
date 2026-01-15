@@ -20,7 +20,7 @@ export interface ExecuteResult {
  * Execute a Claude query using the CLI with streaming progress
  */
 export async function executeClaudeQuery(
-  options: ExecuteOptions
+  options: ExecuteOptions,
 ): Promise<ExecuteResult> {
   const { prompt, userDir, sessionId, onProgress } = options;
   const logger = getLogger();
@@ -39,7 +39,10 @@ export async function executeClaudeQuery(
   }
 
   const claudeCommand = getConfig().claude.command;
-  logger.debug({ command: claudeCommand, args, userDir }, "Executing Claude CLI");
+  logger.debug(
+    { command: claudeCommand, args, userDir },
+    "Executing Claude CLI",
+  );
 
   return new Promise((resolve) => {
     const proc = spawn(claudeCommand, args, {
@@ -64,12 +67,20 @@ export async function executeClaudeQuery(
           const event = JSON.parse(line);
 
           // Extract session ID from init message
-          if (event.type === "system" && event.subtype === "init" && event.session_id) {
+          if (
+            event.type === "system" &&
+            event.subtype === "init" &&
+            event.session_id
+          ) {
             currentSessionId = event.session_id;
           }
 
           // Send progress updates for tool usage
-          if (event.type === "assistant" && event.message?.content && onProgress) {
+          if (
+            event.type === "assistant" &&
+            event.message?.content &&
+            onProgress
+          ) {
             for (const block of event.message.content) {
               if (block.type === "tool_use") {
                 const toolName = block.name || "unknown";

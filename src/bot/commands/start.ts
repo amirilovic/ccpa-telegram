@@ -9,6 +9,6 @@ export async function startHandler(ctx: Context): Promise<void> {
       `- Send any message to chat with me\n` +
       `- Send images or documents for analysis\n` +
       `- Use /clear to start a new conversation\n\n` +
-      `Type /help for more information.`
+      `Type /help for more information.`,
   );
 }

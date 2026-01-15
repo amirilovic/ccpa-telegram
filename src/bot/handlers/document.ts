@@ -1,12 +1,17 @@
-import type { Context } from "grammy";
-import { join, resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
-import { getConfig } from "../../config.js";
-import { getLogger } from "../../logger.js";
-import { ensureUserSetup, getSessionId, saveSessionId, getUploadsPath } from "../../user/setup.js";
+import { join, resolve } from "node:path";
+import type { Context } from "grammy";
 import { executeClaudeQuery } from "../../claude/executor.js";
 import { parseClaudeOutput } from "../../claude/parser.js";
+import { getConfig } from "../../config.js";
+import { getLogger } from "../../logger.js";
 import { sendChunkedResponse } from "../../telegram/chunker.js";
+import {
+  ensureUserSetup,
+  getSessionId,
+  getUploadsPath,
+  saveSessionId,
+} from "../../user/setup.js";
 
 const SUPPORTED_MIME_TYPES = [
   "application/pdf",
@@ -23,9 +28,24 @@ const SUPPORTED_MIME_TYPES = [
 ];
 
 const SUPPORTED_EXTENSIONS = [
-  ".pdf", ".txt", ".md", ".csv", ".json", ".xml", ".html",
-  ".js", ".ts", ".py", ".go", ".rs", ".java",
-  ".jpg", ".jpeg", ".png", ".gif", ".webp",
+  ".pdf",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".xml",
+  ".html",
+  ".js",
+  ".ts",
+  ".py",
+  ".go",
+  ".rs",
+  ".java",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
 ];
 
 /**
@@ -44,12 +64,18 @@ export async function documentHandler(ctx: Context): Promise<void> {
 
   const mimeType = document.mime_type || "";
   const fileName = document.file_name || "document";
-  const ext = fileName.includes(".") ? `.${fileName.split(".").pop()?.toLowerCase()}` : "";
+  const ext = fileName.includes(".")
+    ? `.${fileName.split(".").pop()?.toLowerCase()}`
+    : "";
 
-  const isSupported = SUPPORTED_MIME_TYPES.includes(mimeType) || SUPPORTED_EXTENSIONS.includes(ext);
+  const isSupported =
+    SUPPORTED_MIME_TYPES.includes(mimeType) ||
+    SUPPORTED_EXTENSIONS.includes(ext);
 
   if (!isSupported) {
-    await ctx.reply(`Unsupported file type. Supported: PDF, images, text, and code files.`);
+    await ctx.reply(
+      `Unsupported file type. Supported: PDF, images, text, and code files.`,
+    );
     return;
   }
 
@@ -82,7 +108,9 @@ export async function documentHandler(ctx: Context): Promise<void> {
     const prompt = `Please read the file "./uploads/${safeName}" and ${caption}`;
     const sessionId = await getSessionId(userDir);
 
-    const statusMsg = await ctx.reply("_Processing..._", { parse_mode: "Markdown" });
+    const statusMsg = await ctx.reply("_Processing..._", {
+      parse_mode: "Markdown",
+    });
     let lastProgressUpdate = Date.now();
     let lastProgressText = "Processing...";
 
@@ -96,7 +124,7 @@ export async function documentHandler(ctx: Context): Promise<void> {
             ctx.chat!.id,
             statusMsg.message_id,
             `_${message}_`,
-            { parse_mode: "Markdown" }
+            { parse_mode: "Markdown" },
           );
         } catch {
           // Ignore edit errors
@@ -127,7 +155,10 @@ export async function documentHandler(ctx: Context): Promise<void> {
     await sendChunkedResponse(ctx, parsed.text);
   } catch (error) {
     logger.error({ error }, "Document handler error");
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    await ctx.reply(`An error occurred processing the document: ${errorMessage}`);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    await ctx.reply(
+      `An error occurred processing the document: ${errorMessage}`,
+    );
   }
 }

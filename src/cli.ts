@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { resolve, join } from "node:path";
-import { writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { startBot } from "./bot.js";
 import { initConfig } from "./config.js";
 import { getLogger } from "./logger.js";

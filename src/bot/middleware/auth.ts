@@ -6,7 +6,7 @@ import { getConfig } from "../../config.js";
  */
 export async function authMiddleware(
   ctx: Context,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   const config = getConfig();
   const userId = ctx.from?.id;
@@ -26,6 +26,6 @@ export async function authMiddleware(
   // User not authorized
   await ctx.reply(
     "Sorry, you are not authorized to use this bot.\n" +
-      "Contact the administrator to request access."
+      "Contact the administrator to request access.",
   );
 }

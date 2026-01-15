@@ -15,6 +15,6 @@ export async function helpHandler(ctx: Context): Promise<void> {
       `*Configuration:*\n` +
       `Claude reads configuration from your .claude folder.\n` +
       `Edit CLAUDE.md for system prompts and .claude/settings.json for permissions.`,
-    { parse_mode: "Markdown" }
+    { parse_mode: "Markdown" },
   );
 }

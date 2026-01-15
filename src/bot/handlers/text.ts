@@ -1,10 +1,14 @@
-import type { Context } from "grammy";
 import { join, resolve } from "node:path";
+import type { Context } from "grammy";
+import { executeClaudeQuery } from "../../claude/executor.js";
 import { getConfig } from "../../config.js";
 import { getLogger } from "../../logger.js";
-import { ensureUserSetup, getSessionId, saveSessionId } from "../../user/setup.js";
-import { executeClaudeQuery } from "../../claude/executor.js";
 import { sendChunkedResponse } from "../../telegram/chunker.js";
+import {
+  ensureUserSetup,
+  getSessionId,
+  saveSessionId,
+} from "../../user/setup.js";
 
 /**
  * Handle text messages - routes to Claude
@@ -19,11 +23,14 @@ export async function textHandler(ctx: Context): Promise<void> {
     return;
   }
 
-  logger.debug({
-    userId,
-    username: ctx.from?.username,
-    name: ctx.from?.first_name,
-  }, "Message received");
+  logger.debug(
+    {
+      userId,
+      username: ctx.from?.username,
+      name: ctx.from?.first_name,
+    },
+    "Message received",
+  );
 
   const userDir = resolve(join(config.dataDir, String(userId)));
 
@@ -40,7 +47,9 @@ export async function textHandler(ctx: Context): Promise<void> {
     logger.debug({ sessionId: sessionId || "new" }, "Session");
 
     // Send initial status message
-    const statusMsg = await ctx.reply("_Processing..._", { parse_mode: "Markdown" });
+    const statusMsg = await ctx.reply("_Processing..._", {
+      parse_mode: "Markdown",
+    });
     let lastProgressUpdate = Date.now();
     let lastProgressText = "Processing...";
 
@@ -55,7 +64,7 @@ export async function textHandler(ctx: Context): Promise<void> {
             ctx.chat!.id,
             statusMsg.message_id,
             `_${message}_`,
-            { parse_mode: "Markdown" }
+            { parse_mode: "Markdown" },
           );
         } catch {
           // Ignore edit errors
@@ -70,7 +79,10 @@ export async function textHandler(ctx: Context): Promise<void> {
       sessionId,
       onProgress,
     });
-    logger.debug({ success: result.success, error: result.error }, "Claude result");
+    logger.debug(
+      { success: result.success, error: result.error },
+      "Claude result",
+    );
 
     // Delete status message
     try {
@@ -84,12 +96,15 @@ export async function textHandler(ctx: Context): Promise<void> {
       logger.debug({ sessionId: result.sessionId }, "Session saved");
     }
 
-    const responseText = result.success ? result.output : (result.error || "An error occurred");
+    const responseText = result.success
+      ? result.output
+      : result.error || "An error occurred";
     await sendChunkedResponse(ctx, responseText);
     logger.debug("Response sent");
   } catch (error) {
     logger.error({ error }, "Text handler error");
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await ctx.reply(`An error occurred: ${errorMessage}`);
   }
 }

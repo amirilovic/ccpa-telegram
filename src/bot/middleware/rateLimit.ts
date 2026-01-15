@@ -31,7 +31,7 @@ setInterval(cleanupExpiredEntries, 60000);
  */
 export async function rateLimitMiddleware(
   ctx: Context,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   const config = getConfig();
   const userId = ctx.from?.id;
@@ -59,7 +59,7 @@ export async function rateLimitMiddleware(
       const remainingSec = Math.ceil(remainingMs / 1000);
 
       await ctx.reply(
-        `Rate limit exceeded. Please wait ${remainingSec} seconds before sending another message.`
+        `Rate limit exceeded. Please wait ${remainingSec} seconds before sending another message.`,
       );
       return;
     }
