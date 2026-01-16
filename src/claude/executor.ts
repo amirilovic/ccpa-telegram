@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { getConfig } from "../config.js";
+import { getConfig, getWorkingDirectory } from "../config.js";
 import { getLogger } from "../logger.js";
 
 export interface ExecuteOptions {
@@ -46,7 +46,7 @@ export async function executeClaudeQuery(
 
   return new Promise((resolve) => {
     const proc = spawn(claudeCommand, args, {
-      cwd: userDir,
+      cwd: getWorkingDirectory(),
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });
