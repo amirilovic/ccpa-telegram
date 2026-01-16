@@ -7,6 +7,7 @@ import {
   documentHandler,
   photoHandler,
   textHandler,
+  voiceHandler,
 } from "./bot/handlers/index.js";
 import { authMiddleware } from "./bot/middleware/auth.js";
 import { rateLimitMiddleware } from "./bot/middleware/rateLimit.js";
@@ -69,6 +70,9 @@ export async function startBot(): Promise<void> {
 
   // Document handler (PDFs, etc.)
   bot.on("message:document", documentHandler);
+
+  // Voice message handler
+  bot.on("message:voice", voiceHandler);
 
   // Error handler
   bot.catch((err) => {

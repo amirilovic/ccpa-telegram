@@ -31,6 +31,15 @@ export function getWorkingDirectory(): string {
   return workingDirectory;
 }
 
+const TranscriptionModelSchema = z.enum([
+  "tiny",
+  "base",
+  "small",
+  "medium",
+  "large",
+  "turbo",
+]);
+
 const ConfigSchema = z.object({
   telegram: z.object({
     botToken: z.string().min(1, "telegram.botToken is required"),
@@ -49,6 +58,12 @@ const ConfigSchema = z.object({
   claude: z.object({
     command: z.string().default("claude"),
   }),
+  transcription: z
+    .object({
+      model: TranscriptionModelSchema.default("turbo"),
+      showTranscription: z.boolean().default(true),
+    })
+    .optional(),
 });
 
 // Schema for the config file (all fields optional)
@@ -83,6 +98,13 @@ const ConfigFileSchema = z
     claude: z
       .object({
         command: z.string(),
+      })
+      .partial()
+      .optional(),
+    transcription: z
+      .object({
+        model: TranscriptionModelSchema,
+        showTranscription: z.boolean(),
       })
       .partial()
       .optional(),
@@ -164,6 +186,14 @@ export function loadConfig(): Config {
     claude: {
       command:
         process.env.CLAUDE_COMMAND || fileConfig.claude?.command || "claude",
+    },
+    transcription: {
+      model:
+        process.env.WHISPER_MODEL || fileConfig.transcription?.model || "turbo",
+      showTranscription:
+        process.env.SHOW_TRANSCRIPTION === "false"
+          ? false
+          : (fileConfig.transcription?.showTranscription ?? true),
     },
   };
 

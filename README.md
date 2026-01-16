@@ -6,6 +6,7 @@ A Telegram bot that provides access to Claude Code as a personal assistant. Run 
 
 - Chat with Claude Code via Telegram
 - Send images and documents for analysis
+- **Voice message support** with local Whisper transcription
 - Persistent conversation sessions per user
 - Configurable Claude settings per project
 - Multi-user support with access control
@@ -28,6 +29,7 @@ For complete documentation on Claude Code configuration, see the [Claude Code do
 - Node.js 18+
 - [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated.
 - A Telegram bot token (from [@BotFather](https://t.me/BotFather)). See [Creating a Telegram Bot](#creating-a-telegram-bot) for instructions.
+- **ffmpeg** (required for voice messages) - install with `brew install ffmpeg` on macOS
 
 ## Quick Start
 
@@ -69,29 +71,37 @@ Create a `ccpa.config.json` file in your project directory:
   },
   "logging": {
     "level": "info"
+  },
+  "transcription": {
+    "model": "turbo",
+    "showTranscription": true
   }
 }
 ```
 
 ### Configuration Options
 
-| Option                  | Description                                       | Default    |
-| ----------------------- | ------------------------------------------------- | ---------- |
-| `telegram.botToken`     | Telegram bot token from BotFather                 | Required   |
-| `access.allowedUserIds` | Array of Telegram user IDs allowed to use the bot | `[]`       |
-| `claude.command`        | Claude CLI command                                | `"claude"` |
-| `logging.level`         | Log level: debug, info, warn, error               | `"info"`   |
+| Option                          | Description                                                    | Default    |
+| ------------------------------- | -------------------------------------------------------------- | ---------- |
+| `telegram.botToken`             | Telegram bot token from BotFather                              | Required   |
+| `access.allowedUserIds`         | Array of Telegram user IDs allowed to use the bot              | `[]`       |
+| `claude.command`                | Claude CLI command                                             | `"claude"` |
+| `logging.level`                 | Log level: debug, info, warn, error                            | `"info"`   |
+| `transcription.model`           | Whisper model: tiny, base, small, medium, large, turbo         | `"turbo"`  |
+| `transcription.showTranscription` | Show transcribed text before Claude response                 | `true`     |
 
 ### Environment Variables
 
 Environment variables override config file values:
 
-| Variable             | Description              |
-| -------------------- | ------------------------ |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token       |
-| `ALLOWED_USER_IDS`   | Comma-separated user IDs |
-| `CLAUDE_COMMAND`     | Claude CLI command       |
-| `LOG_LEVEL`          | Logging level            |
+| Variable             | Description                          |
+| -------------------- | ------------------------------------ |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token                   |
+| `ALLOWED_USER_IDS`   | Comma-separated user IDs             |
+| `CLAUDE_COMMAND`     | Claude CLI command                   |
+| `LOG_LEVEL`          | Logging level                        |
+| `WHISPER_MODEL`      | Whisper model for voice transcription |
+| `SHOW_TRANSCRIPTION` | Show transcription (true/false)      |
 
 ## Directory Structure
 
@@ -151,6 +161,27 @@ To find your Telegram user ID:
 1. Message [@userinfobot](https://t.me/userinfobot) on Telegram
 2. It will reply with your user ID
 3. Add this ID to `allowedUserIds` in your config
+
+## Voice Messages
+
+Voice messages are transcribed locally using [Whisper](https://github.com/openai/whisper) via the `nodejs-whisper` package. No audio data is sent to external services.
+
+### Whisper Models
+
+| Model   | Size    | Speed vs Real-time | Quality                        |
+| ------- | ------- | ------------------ | ------------------------------ |
+| `tiny`  | ~1 GB   | ~10x faster        | Basic, English-focused         |
+| `base`  | ~1 GB   | ~7x faster         | Good for clear speech          |
+| `small` | ~2 GB   | ~4x faster         | Good multilingual              |
+| `medium`| ~5 GB   | ~2x faster         | Very good multilingual         |
+| `large` | ~10 GB  | ~1x (real-time)    | Best quality                   |
+| `turbo` | ~6 GB   | ~8x faster         | Near-large quality (default)   |
+
+**First run**: The model will be downloaded automatically (~6GB for turbo). Subsequent runs use the cached model.
+
+### Supported Languages
+
+Whisper supports 50+ languages including English, German, Serbian, Spanish, French, and many more. The `turbo` model provides excellent quality for most languages.
 
 ## Security Notice
 

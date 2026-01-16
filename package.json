@@ -39,6 +39,7 @@
   "dependencies": {
     "dotenv": "^17.2.3",
     "grammy": "^1.39.2",
+    "nodejs-whisper": "^0.2.9",
     "pino": "^10.2.0",
     "zod": "^4.3.5"
   },
