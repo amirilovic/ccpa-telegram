@@ -22,7 +22,7 @@ export interface ExecuteResult {
 export async function executeClaudeQuery(
   options: ExecuteOptions,
 ): Promise<ExecuteResult> {
-  const { prompt, userDir, sessionId, onProgress } = options;
+  const { prompt, sessionId, onProgress } = options;
   const logger = getLogger();
 
   const args: string[] = [
@@ -39,19 +39,18 @@ export async function executeClaudeQuery(
   }
 
   const claudeCommand = getConfig().claude.command;
-  logger.debug(
-    { command: claudeCommand, args, userDir },
-    "Executing Claude CLI",
-  );
+  const cwd = getWorkingDirectory();
+  logger.info({ command: claudeCommand, args, cwd }, "Executing Claude CLI");
 
   return new Promise((resolve) => {
     const proc = spawn(claudeCommand, args, {
-      cwd: getWorkingDirectory(),
+      cwd,
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
     let fullOutput = "";
+    let stderrOutput = "";
     let lastResult: ExecuteResult | null = null;
     let currentSessionId: string | undefined;
 
@@ -113,11 +112,17 @@ export async function executeClaudeQuery(
 
           // Capture the final result
           if (event.type === "result") {
+            logger.debug({ event }, "Claude result event");
+            // Error can be in event.result or event.errors array
+            const errorMessage = event.is_error
+              ? event.result ||
+                (event.errors?.length ? event.errors.join("; ") : undefined)
+              : undefined;
             lastResult = {
               success: !event.is_error,
               output: event.result || "",
               sessionId: event.session_id || currentSessionId,
-              error: event.is_error ? event.result : undefined,
+              error: errorMessage,
             };
           }
         } catch {
@@ -129,6 +134,7 @@ export async function executeClaudeQuery(
     proc.stderr.on("data", (data: Buffer) => {
       const chunk = data.toString().trim();
       if (chunk) {
+        stderrOutput += `${chunk}\n`;
         logger.debug({ stderr: chunk }, "Claude stderr");
       }
     });
@@ -137,6 +143,16 @@ export async function executeClaudeQuery(
       logger.debug({ code }, "Claude process closed");
 
       if (lastResult) {
+        if (!lastResult.success) {
+          logger.error(
+            {
+              error: lastResult.error,
+              output: lastResult.output?.slice(0, 1000),
+              stderr: stderrOutput,
+            },
+            "Claude returned error",
+          );
+        }
         resolve(lastResult);
       } else if (code === 0) {
         resolve({
@@ -145,10 +161,16 @@ export async function executeClaudeQuery(
           sessionId: currentSessionId,
         });
       } else {
+        const errorMsg =
+          stderrOutput.trim() || `Claude exited with code ${code}`;
+        logger.error(
+          { code, stderr: stderrOutput, output: fullOutput.slice(0, 500) },
+          "Claude process failed",
+        );
         resolve({
           success: false,
           output: fullOutput,
-          error: `Claude exited with code ${code}`,
+          error: errorMsg,
         });
       }
     });
