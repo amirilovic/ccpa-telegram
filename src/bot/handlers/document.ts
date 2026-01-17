@@ -6,8 +6,10 @@ import { parseClaudeOutput } from "../../claude/parser.js";
 import { getConfig } from "../../config.js";
 import { getLogger } from "../../logger.js";
 import { sendChunkedResponse } from "../../telegram/chunker.js";
+import { sendDownloadFiles } from "../../telegram/fileSender.js";
 import {
   ensureUserSetup,
+  getDownloadsPath,
   getSessionId,
   getUploadsPath,
   saveSessionId,
@@ -132,10 +134,13 @@ export async function documentHandler(ctx: Context): Promise<void> {
       }
     };
 
+    const downloadsPath = getDownloadsPath(userDir);
+
     logger.debug("Executing Claude query with document");
     const result = await executeClaudeQuery({
       prompt,
       userDir,
+      downloadsPath,
       sessionId,
       onProgress,
     });
@@ -153,6 +158,12 @@ export async function documentHandler(ctx: Context): Promise<void> {
     }
 
     await sendChunkedResponse(ctx, parsed.text);
+
+    // Send any files from downloads folder
+    const filesSent = await sendDownloadFiles(ctx, userDir);
+    if (filesSent > 0) {
+      logger.info({ filesSent }, "Sent download files to user");
+    }
   } catch (error) {
     logger.error({ error }, "Document handler error");
     const errorMessage =

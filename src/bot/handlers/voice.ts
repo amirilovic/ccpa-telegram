@@ -8,9 +8,11 @@ import { parseClaudeOutput } from "../../claude/parser.js";
 import { getConfig } from "../../config.js";
 import { getLogger } from "../../logger.js";
 import { sendChunkedResponse } from "../../telegram/chunker.js";
+import { sendDownloadFiles } from "../../telegram/fileSender.js";
 import { transcribeAudio } from "../../transcription/whisper.js";
 import {
   ensureUserSetup,
+  getDownloadsPath,
   getSessionId,
   getUploadsPath,
   saveSessionId,
@@ -159,6 +161,8 @@ export async function voiceHandler(ctx: Context): Promise<void> {
       }
     };
 
+    const downloadsPath = getDownloadsPath(userDir);
+
     logger.debug(
       { transcription: transcription.text },
       "Executing Claude query",
@@ -166,6 +170,7 @@ export async function voiceHandler(ctx: Context): Promise<void> {
     const result = await executeClaudeQuery({
       prompt: transcription.text,
       userDir,
+      downloadsPath,
       sessionId,
       onProgress,
     });
@@ -184,6 +189,12 @@ export async function voiceHandler(ctx: Context): Promise<void> {
     }
 
     await sendChunkedResponse(ctx, parsed.text);
+
+    // Send any files from downloads folder
+    const filesSent = await sendDownloadFiles(ctx, userDir);
+    if (filesSent > 0) {
+      logger.info({ filesSent }, "Sent download files to user");
+    }
   } catch (error) {
     logger.error({ error }, "Voice handler error");
     const errorMessage =

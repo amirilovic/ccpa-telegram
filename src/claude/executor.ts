@@ -5,6 +5,7 @@ import { getLogger } from "../logger.js";
 export interface ExecuteOptions {
   prompt: string;
   userDir: string;
+  downloadsPath?: string;
   sessionId?: string | null;
   onProgress?: (message: string) => void;
 }
@@ -22,12 +23,17 @@ export interface ExecuteResult {
 export async function executeClaudeQuery(
   options: ExecuteOptions,
 ): Promise<ExecuteResult> {
-  const { prompt, sessionId, onProgress } = options;
+  const { prompt, downloadsPath, sessionId, onProgress } = options;
   const logger = getLogger();
+
+  // Append downloads path info to prompt if provided
+  const fullPrompt = downloadsPath
+    ? `${prompt}\n\n[System: To send files to the user, write them to: ${downloadsPath}]`
+    : prompt;
 
   const args: string[] = [
     "-p",
-    prompt,
+    fullPrompt,
     "--output-format",
     "stream-json",
     "--verbose",

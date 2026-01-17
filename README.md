@@ -7,6 +7,7 @@ A Telegram bot that provides access to Claude Code as a personal assistant. Run 
 - Chat with Claude Code via Telegram
 - Send images and documents for analysis
 - **Voice message support** with local Whisper transcription
+- **File sending** - Claude can send files back to you
 - Persistent conversation sessions per user
 - Configurable Claude settings per project
 - Multi-user support with access control
@@ -114,7 +115,8 @@ my-project/
 └── .ccpa/
     └── users/
         └── {userId}/
-            ├── uploads/      # Uploaded files
+            ├── uploads/      # Files FROM user (to Claude)
+            ├── downloads/    # Files TO user (from Claude)
             └── session.json  # Session data
 ```
 
@@ -215,6 +217,34 @@ Voice transcription requires additional setup:
 ### Supported Languages
 
 Whisper supports 50+ languages including English, German, Spanish, French, and many more. Use models without `.en` suffix for multilingual support.
+
+## Sending Files to User
+
+Claude can send files back to you through Telegram. Each user has a dedicated `downloads/` folder, and Claude is informed of this path in every prompt.
+
+### How It Works
+
+1. **Claude writes a file** to your downloads folder (e.g., `.ccpa/users/{userId}/downloads/report.pdf`)
+2. **The bot detects** the new file after Claude's response completes
+3. **The file is sent** to you via Telegram (as a document)
+4. **The file is deleted** from the server after successful delivery
+
+### Example Usage
+
+Ask Claude to create and send you a file:
+
+```
+Create a simple hello.txt file in my downloads folder with "Hello World" content
+```
+
+Claude will write the file to your downloads path, and the bot will automatically send it to you.
+
+### Supported Files
+
+Any file type that Telegram supports can be sent, including:
+- Documents (PDF, TXT, CSV, JSON, etc.)
+- Images (PNG, JPG, etc.)
+- Archives (ZIP, TAR, etc.)
 
 ## Security Notice
 

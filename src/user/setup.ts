@@ -20,14 +20,18 @@ async function directoryExists(path: string): Promise<boolean> {
 
 /**
  * Initialize a new user directory
- * Only creates uploads folder - Claude config is read from working directory
+ * Creates uploads and downloads folders - Claude config is read from working directory
  */
 export async function ensureUserSetup(userDir: string): Promise<void> {
   const uploadsDir = join(userDir, "uploads");
+  const downloadsDir = join(userDir, "downloads");
 
-  // Create user directory and uploads folder
+  // Create user directory, uploads and downloads folders
   if (!(await directoryExists(uploadsDir))) {
     await mkdir(uploadsDir, { recursive: true });
+  }
+  if (!(await directoryExists(downloadsDir))) {
+    await mkdir(downloadsDir, { recursive: true });
   }
 }
 
@@ -45,6 +49,13 @@ export async function clearUserData(userDir: string): Promise<void> {
  */
 export function getUploadsPath(userDir: string): string {
   return join(userDir, "uploads");
+}
+
+/**
+ * Get the path to user's downloads directory (for sending files to user)
+ */
+export function getDownloadsPath(userDir: string): string {
+  return join(userDir, "downloads");
 }
 
 /**
