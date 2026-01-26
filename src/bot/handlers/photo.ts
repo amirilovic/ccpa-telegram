@@ -1,11 +1,15 @@
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { Context } from "grammy";
-import { executeClaudeQuery } from "../../claude/executor.js";
+import { executeClaudeQueryStreaming } from "../../claude/executor.js";
 import { parseClaudeOutput } from "../../claude/parser.js";
 import { getConfig } from "../../config.js";
 import { getLogger } from "../../logger.js";
-import { sendChunkedResponse } from "../../telegram/chunker.js";
+import {
+  createStreamingResponse,
+  finalizeStreamingResponse,
+  updateStreamingResponse,
+} from "../../telegram/chunker.js";
 import { sendDownloadFiles } from "../../telegram/fileSender.js";
 import {
   ensureUserSetup,
@@ -16,7 +20,7 @@ import {
 } from "../../user/setup.js";
 
 /**
- * Handle photo messages
+ * Handle photo messages with streaming response
  */
 export async function photoHandler(ctx: Context): Promise<void> {
   const config = getConfig();
@@ -61,21 +65,28 @@ export async function photoHandler(ctx: Context): Promise<void> {
     const prompt = `Please look at the image file "./uploads/${imageName}" and ${caption}`;
     const sessionId = await getSessionId(userDir);
 
-    const statusMsg = await ctx.reply("_Processing..._", {
-      parse_mode: "Markdown",
-    });
+    // Create streaming response
+    const streamingState = await createStreamingResponse(ctx);
+    if (!streamingState) {
+      await ctx.reply("Failed to initialize response.");
+      return;
+    }
+
     let lastProgressUpdate = Date.now();
-    let lastProgressText = "Processing...";
+    let lastProgressText = "";
+    let hasReceivedText = false;
 
     const onProgress = async (message: string) => {
+      if (hasReceivedText) return;
+
       const now = Date.now();
-      if (now - lastProgressUpdate > 2000 && message !== lastProgressText) {
+      if (now - lastProgressUpdate > 1000 && message !== lastProgressText) {
         lastProgressUpdate = now;
         lastProgressText = message;
         try {
           await ctx.api.editMessageText(
-            ctx.chat!.id,
-            statusMsg.message_id,
+            streamingState.chatId,
+            streamingState.messageId,
             `_${message}_`,
             { parse_mode: "Markdown" },
           );
@@ -85,22 +96,22 @@ export async function photoHandler(ctx: Context): Promise<void> {
       }
     };
 
+    const onTextChunk = async (_newChunk: string, fullText: string) => {
+      hasReceivedText = true;
+      await updateStreamingResponse(ctx, streamingState, fullText);
+    };
+
     const downloadsPath = getDownloadsPath(userDir);
 
-    logger.debug("Executing Claude query with image");
-    const result = await executeClaudeQuery({
+    logger.debug("Executing Claude query with image (streaming)");
+    const result = await executeClaudeQueryStreaming({
       prompt,
       userDir,
       downloadsPath,
       sessionId,
       onProgress,
+      onTextChunk,
     });
-
-    try {
-      await ctx.api.deleteMessage(ctx.chat!.id, statusMsg.message_id);
-    } catch {
-      // Ignore delete errors
-    }
 
     const parsed = parseClaudeOutput(result);
 
@@ -108,7 +119,8 @@ export async function photoHandler(ctx: Context): Promise<void> {
       await saveSessionId(userDir, parsed.sessionId);
     }
 
-    await sendChunkedResponse(ctx, parsed.text);
+    // Finalize the streaming response
+    await finalizeStreamingResponse(ctx, streamingState, parsed.text);
 
     // Send any files from downloads folder
     const filesSent = await sendDownloadFiles(ctx, userDir);

@@ -1,6 +1,7 @@
 import type { Context } from "grammy";
 
 const TELEGRAM_MAX_LENGTH = 4096;
+const STREAMING_UPDATE_INTERVAL_MS = 500; // Update every 500ms during streaming
 
 /**
  * Find a safe split point in text, trying to avoid breaking code blocks
@@ -98,7 +99,140 @@ export async function sendChunkedResponse(
 
     // Small delay between chunks to avoid rate limiting
     if (i < chunks.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
+  }
+}
+
+/**
+ * Streaming response state management
+ */
+export interface StreamingResponseState {
+  chatId: number;
+  messageId: number;
+  currentText: string;
+  lastUpdateTime: number;
+  isComplete: boolean;
+  sentChunks: number; // How many overflow chunks we've sent
+}
+
+/**
+ * Create a new streaming response message
+ */
+export async function createStreamingResponse(
+  ctx: Context,
+): Promise<StreamingResponseState | null> {
+  if (!ctx.chat?.id) return null;
+
+  const msg = await ctx.reply("_..._", { parse_mode: "Markdown" });
+
+  return {
+    chatId: ctx.chat.id,
+    messageId: msg.message_id,
+    currentText: "",
+    lastUpdateTime: Date.now(),
+    isComplete: false,
+    sentChunks: 0,
+  };
+}
+
+/**
+ * Update streaming response with new text
+ * Returns true if update was sent, false if throttled
+ */
+export async function updateStreamingResponse(
+  ctx: Context,
+  state: StreamingResponseState,
+  newText: string,
+  forceUpdate = false,
+): Promise<boolean> {
+  const now = Date.now();
+  const timeSinceLastUpdate = now - state.lastUpdateTime;
+
+  // Throttle updates to avoid hitting Telegram rate limits
+  if (!forceUpdate && timeSinceLastUpdate < STREAMING_UPDATE_INTERVAL_MS) {
+    return false;
+  }
+
+  // If text is the same, skip update
+  if (newText === state.currentText) {
+    return false;
+  }
+
+  state.currentText = newText;
+  state.lastUpdateTime = now;
+
+  // Handle text that exceeds Telegram's limit
+  // We show the last TELEGRAM_MAX_LENGTH chars in the streaming message
+  // and will send full response at the end
+  let displayText = newText;
+  if (newText.length > TELEGRAM_MAX_LENGTH - 50) {
+    // Reserve space for typing indicator
+    // Show last portion of text to keep it feeling live
+    const truncatedText = newText.slice(-(TELEGRAM_MAX_LENGTH - 100));
+    displayText = `_(streaming...)_\n\n${truncatedText}`;
+  }
+
+  // Add typing indicator if not complete
+  if (!state.isComplete && !displayText.endsWith("_")) {
+    displayText = `${displayText} ▌`;
+  }
+
+  try {
+    await ctx.api.editMessageText(state.chatId, state.messageId, displayText, {
+      parse_mode: "Markdown",
+    });
+    return true;
+  } catch {
+    // Try without markdown if it fails
+    try {
+      const plainText = displayText.replace(/[_*`]/g, "");
+      await ctx.api.editMessageText(state.chatId, state.messageId, plainText);
+      return true;
+    } catch {
+      // Ignore edit errors (message might be deleted or unchanged)
+      return false;
+    }
+  }
+}
+
+/**
+ * Finalize streaming response - send complete message
+ * If message exceeds one chunk, delete streaming message and send full response
+ */
+export async function finalizeStreamingResponse(
+  ctx: Context,
+  state: StreamingResponseState,
+  finalText: string,
+): Promise<void> {
+  state.isComplete = true;
+  state.currentText = finalText;
+
+  const chunks = chunkMessage(finalText);
+
+  if (chunks.length === 1) {
+    // Single chunk - just update the existing message
+    try {
+      await ctx.api.editMessageText(state.chatId, state.messageId, finalText, {
+        parse_mode: "Markdown",
+      });
+    } catch {
+      // Try without markdown
+      try {
+        await ctx.api.editMessageText(state.chatId, state.messageId, finalText);
+      } catch {
+        // If edit fails, send as new message
+        await sendChunkedResponse(ctx, finalText);
+      }
+    }
+  } else {
+    // Multiple chunks - delete streaming message and send all chunks
+    try {
+      await ctx.api.deleteMessage(state.chatId, state.messageId);
+    } catch {
+      // Ignore delete errors
+    }
+
+    await sendChunkedResponse(ctx, finalText);
   }
 }

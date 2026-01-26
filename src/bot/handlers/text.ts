@@ -1,9 +1,13 @@
 import { join, resolve } from "node:path";
 import type { Context } from "grammy";
-import { executeClaudeQuery } from "../../claude/executor.js";
+import { executeClaudeQueryStreaming } from "../../claude/executor.js";
 import { getConfig } from "../../config.js";
 import { getLogger } from "../../logger.js";
-import { sendChunkedResponse } from "../../telegram/chunker.js";
+import {
+  createStreamingResponse,
+  finalizeStreamingResponse,
+  updateStreamingResponse,
+} from "../../telegram/chunker.js";
 import { sendDownloadFiles } from "../../telegram/fileSender.js";
 import {
   ensureUserSetup,
@@ -13,7 +17,7 @@ import {
 } from "../../user/setup.js";
 
 /**
- * Handle text messages - routes to Claude
+ * Handle text messages - routes to Claude with streaming response
  */
 export async function textHandler(ctx: Context): Promise<void> {
   const config = getConfig();
@@ -48,23 +52,30 @@ export async function textHandler(ctx: Context): Promise<void> {
     const sessionId = await getSessionId(userDir);
     logger.debug({ sessionId: sessionId || "new" }, "Session");
 
-    // Send initial status message
-    const statusMsg = await ctx.reply("_Processing..._", {
-      parse_mode: "Markdown",
-    });
-    let lastProgressUpdate = Date.now();
-    let lastProgressText = "Processing...";
+    // Create streaming response message
+    const streamingState = await createStreamingResponse(ctx);
+    if (!streamingState) {
+      await ctx.reply("Failed to initialize response.");
+      return;
+    }
 
-    // Progress callback - updates status message
+    let lastProgressUpdate = Date.now();
+    let lastProgressText = "";
+    let hasReceivedText = false;
+
+    // Progress callback - updates status message when doing tools
     const onProgress = async (message: string) => {
+      // Only show progress if we haven't started receiving text yet
+      if (hasReceivedText) return;
+
       const now = Date.now();
-      if (now - lastProgressUpdate > 2000 && message !== lastProgressText) {
+      if (now - lastProgressUpdate > 1000 && message !== lastProgressText) {
         lastProgressUpdate = now;
         lastProgressText = message;
         try {
           await ctx.api.editMessageText(
-            ctx.chat!.id,
-            statusMsg.message_id,
+            streamingState.chatId,
+            streamingState.messageId,
             `_${message}_`,
             { parse_mode: "Markdown" },
           );
@@ -74,27 +85,27 @@ export async function textHandler(ctx: Context): Promise<void> {
       }
     };
 
+    // Text streaming callback - updates message with incoming text
+    const onTextChunk = async (_newChunk: string, fullText: string) => {
+      hasReceivedText = true;
+      await updateStreamingResponse(ctx, streamingState, fullText);
+    };
+
     const downloadsPath = getDownloadsPath(userDir);
 
-    logger.debug("Executing Claude query");
-    const result = await executeClaudeQuery({
+    logger.debug("Executing Claude query with streaming");
+    const result = await executeClaudeQueryStreaming({
       prompt: messageText,
       userDir,
       downloadsPath,
       sessionId,
       onProgress,
+      onTextChunk,
     });
     logger.debug(
       { success: result.success, error: result.error },
       "Claude result",
     );
-
-    // Delete status message
-    try {
-      await ctx.api.deleteMessage(ctx.chat!.id, statusMsg.message_id);
-    } catch {
-      // Ignore delete errors
-    }
 
     if (result.sessionId) {
       await saveSessionId(userDir, result.sessionId);
@@ -104,8 +115,10 @@ export async function textHandler(ctx: Context): Promise<void> {
     const responseText = result.success
       ? result.output
       : result.error || "An error occurred";
-    await sendChunkedResponse(ctx, responseText);
-    logger.debug("Response sent");
+
+    // Finalize the streaming response with the complete text
+    await finalizeStreamingResponse(ctx, streamingState, responseText);
+    logger.debug("Streaming response finalized");
 
     // Send any files from downloads folder
     const filesSent = await sendDownloadFiles(ctx, userDir);

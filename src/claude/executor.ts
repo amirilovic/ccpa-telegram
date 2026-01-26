@@ -10,6 +10,10 @@ export interface ExecuteOptions {
   onProgress?: (message: string) => void;
 }
 
+export interface StreamingExecuteOptions extends ExecuteOptions {
+  onTextChunk?: (text: string, fullText: string) => void;
+}
+
 export interface ExecuteResult {
   success: boolean;
   output: string;
@@ -18,12 +22,13 @@ export interface ExecuteResult {
 }
 
 /**
- * Execute a Claude query using the CLI with streaming progress
+ * Execute a Claude query using the CLI with streaming text output
+ * This version calls onTextChunk as soon as text is available
  */
-export async function executeClaudeQuery(
-  options: ExecuteOptions,
+export async function executeClaudeQueryStreaming(
+  options: StreamingExecuteOptions,
 ): Promise<ExecuteResult> {
-  const { prompt, downloadsPath, sessionId, onProgress } = options;
+  const { prompt, downloadsPath, sessionId, onProgress, onTextChunk } = options;
   const logger = getLogger();
 
   // Append downloads path info to prompt if provided
@@ -46,7 +51,10 @@ export async function executeClaudeQuery(
 
   const claudeCommand = getConfig().claude.command;
   const cwd = getWorkingDirectory();
-  logger.info({ command: claudeCommand, args, cwd }, "Executing Claude CLI");
+  logger.info(
+    { command: claudeCommand, args, cwd },
+    "Executing Claude CLI (streaming)",
+  );
 
   return new Promise((resolve) => {
     const proc = spawn(claudeCommand, args, {
@@ -58,7 +66,8 @@ export async function executeClaudeQuery(
     let stderrOutput = "";
     let lastResult: ExecuteResult | null = null;
     let currentSessionId: string | undefined;
-    let lastAssistantText = ""; // Track last text response for fallback
+    let accumulatedText = ""; // Accumulated text from all assistant messages
+    let isProcessingTools = false; // Track if we're in tool processing mode
 
     proc.stdout.on("data", (data: Buffer) => {
       const chunk = data.toString();
@@ -79,16 +88,29 @@ export async function executeClaudeQuery(
             currentSessionId = event.session_id;
           }
 
-          // Extract text from assistant messages and send progress updates
+          // Extract text from assistant messages
           if (event.type === "assistant" && event.message?.content) {
             for (const block of event.message.content) {
-              // Capture text content for fallback
+              // Capture and stream text content immediately
               if (block.type === "text" && block.text) {
-                lastAssistantText = block.text;
+                // Only accumulate if we haven't seen this exact text before
+                // Claude streams incrementally, so we get the full text each time
+                if (block.text.length > accumulatedText.length) {
+                  const newText = block.text;
+
+                  // If we were processing tools, this is new text after tools
+                  if (!isProcessingTools) {
+                    accumulatedText = newText;
+                    if (onTextChunk) {
+                      onTextChunk(newText, accumulatedText);
+                    }
+                  }
+                }
               }
 
               // Send progress updates for tool usage
               if (block.type === "tool_use") {
+                isProcessingTools = true;
                 const toolName = block.name || "unknown";
                 let progressMsg = `Using ${toolName}...`;
 
@@ -123,10 +145,11 @@ export async function executeClaudeQuery(
             }
           }
 
-          // Log tool results
+          // Log tool results and mark tool processing as done
           if (event.type === "user" && event.message?.content) {
             for (const block of event.message.content) {
               if (block.type === "tool_result") {
+                isProcessingTools = false;
                 const result =
                   typeof block.content === "string"
                     ? block.content.slice(0, 500)
@@ -149,7 +172,7 @@ export async function executeClaudeQuery(
               : undefined;
             lastResult = {
               success: !event.is_error,
-              output: event.result || "",
+              output: event.result || accumulatedText,
               sessionId: event.session_id || currentSessionId,
               error: errorMessage,
             };
@@ -184,22 +207,22 @@ export async function executeClaudeQuery(
         }
         resolve(lastResult);
       } else if (code === 0) {
-        // No result event but process succeeded - use last assistant text
+        // No result event but process succeeded - use accumulated text
         resolve({
           success: true,
-          output: lastAssistantText || "No response received",
+          output: accumulatedText || "No response received",
           sessionId: currentSessionId,
         });
       } else {
         const errorMsg =
           stderrOutput.trim() || `Claude exited with code ${code}`;
         logger.error(
-          { code, stderr: stderrOutput, lastText: lastAssistantText },
+          { code, stderr: stderrOutput, lastText: accumulatedText },
           "Claude process failed",
         );
         resolve({
           success: false,
-          output: lastAssistantText,
+          output: accumulatedText,
           error: errorMsg,
         });
       }
@@ -214,4 +237,14 @@ export async function executeClaudeQuery(
       });
     });
   });
+}
+
+/**
+ * Execute a Claude query using the CLI with streaming progress
+ * (Original non-streaming version for backwards compatibility)
+ */
+export async function executeClaudeQuery(
+  options: ExecuteOptions,
+): Promise<ExecuteResult> {
+  return executeClaudeQueryStreaming(options);
 }
