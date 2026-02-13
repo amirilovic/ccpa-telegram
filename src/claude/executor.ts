@@ -98,10 +98,7 @@ export async function executeClaudeQuery(
                 progressMsg = `Fetching: ${block.input.url}`;
               }
 
-              logger.info(
-                { tool: toolName, input: block.input },
-                progressMsg,
-              );
+              logger.info({ tool: toolName, input: block.input }, progressMsg);
               if (onProgress) {
                 onProgress(progressMsg);
               }
@@ -144,7 +141,8 @@ export async function executeClaudeQuery(
         } else {
           // Error result
           output = lastAssistantText;
-          errorMessage = message.errors?.join("; ") || `Error: ${message.subtype}`;
+          errorMessage =
+            message.errors?.join("; ") || `Error: ${message.subtype}`;
         }
 
         lastResult = {
@@ -160,7 +158,10 @@ export async function executeClaudeQuery(
     if (lastResult) {
       if (!lastResult.success) {
         logger.error(
-          { error: lastResult.error, output: lastResult.output?.slice(0, 1000) },
+          {
+            error: lastResult.error,
+            output: lastResult.output?.slice(0, 1000),
+          },
           "Claude returned error",
         );
       }
