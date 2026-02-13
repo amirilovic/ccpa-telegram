@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
-import { getConfig, getWorkingDirectory } from "../config.js";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+import { getWorkingDirectory } from "../config.js";
 import { getLogger } from "../logger.js";
 
 export interface ExecuteOptions {
@@ -18,7 +18,7 @@ export interface ExecuteResult {
 }
 
 /**
- * Execute a Claude query using the CLI with streaming progress
+ * Execute a Claude query using the SDK with streaming progress
  */
 export async function executeClaudeQuery(
   options: ExecuteOptions,
@@ -31,187 +31,155 @@ export async function executeClaudeQuery(
     ? `${prompt}\n\n[System: To send files to the user, write them to: ${downloadsPath}]`
     : prompt;
 
-  const args: string[] = [
-    "-p",
-    fullPrompt,
-    "--output-format",
-    "stream-json",
-    "--verbose",
-  ];
-
-  // Resume previous session if we have a session ID
-  if (sessionId) {
-    args.push("--resume", sessionId);
-  }
-
-  const claudeCommand = getConfig().claude.command;
   const cwd = getWorkingDirectory();
-  logger.info({ command: claudeCommand, args, cwd }, "Executing Claude CLI");
+  logger.info({ cwd, sessionId }, "Executing Claude query via SDK");
 
-  return new Promise((resolve) => {
-    const proc = spawn(claudeCommand, args, {
+  try {
+    const queryOptions = {
       cwd,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
+      // Resume previous session if we have a session ID
+      ...(sessionId ? { resume: sessionId } : {}),
+      // Allow permissions based on .claude/settings.json in the working directory
+      permissionMode: "acceptEdits" as const,
+    };
+
+    logger.debug({ options: queryOptions }, "Starting SDK query");
+
+    const q = query({
+      prompt: fullPrompt,
+      options: queryOptions,
     });
 
-    let stderrOutput = "";
     let lastResult: ExecuteResult | null = null;
     let currentSessionId: string | undefined;
     let lastAssistantText = ""; // Track last text response for fallback
 
-    proc.stdout.on("data", (data: Buffer) => {
-      const chunk = data.toString();
+    // Stream messages from the SDK
+    for await (const message of q) {
+      logger.debug({ type: message.type }, "Received SDK message");
 
-      // Parse streaming JSON lines
-      const lines = chunk.split("\n").filter((line) => line.trim());
+      // Extract session ID from messages
+      if (message.session_id) {
+        currentSessionId = message.session_id;
+      }
 
-      for (const line of lines) {
-        try {
-          const event = JSON.parse(line);
+      // Handle assistant messages
+      if (message.type === "assistant") {
+        // Extract text from assistant messages
+        if (message.message?.content) {
+          for (const block of message.message.content) {
+            // Capture text content for fallback
+            if (block.type === "text" && block.text) {
+              lastAssistantText = block.text;
+            }
 
-          // Extract session ID from init message
-          if (
-            event.type === "system" &&
-            event.subtype === "init" &&
-            event.session_id
-          ) {
-            currentSessionId = event.session_id;
-          }
+            // Send progress updates for tool usage
+            if (block.type === "tool_use") {
+              const toolName = block.name || "unknown";
+              let progressMsg = `Using ${toolName}...`;
 
-          // Extract text from assistant messages and send progress updates
-          if (event.type === "assistant" && event.message?.content) {
-            for (const block of event.message.content) {
-              // Capture text content for fallback
-              if (block.type === "text" && block.text) {
-                lastAssistantText = block.text;
+              // Add more context for specific tools
+              if (toolName === "Read" && block.input?.file_path) {
+                progressMsg = `Reading: ${block.input.file_path}`;
+              } else if (toolName === "Grep" && block.input?.pattern) {
+                progressMsg = `Searching for: ${block.input.pattern}`;
+              } else if (toolName === "Glob" && block.input?.pattern) {
+                progressMsg = `Finding files: ${block.input.pattern}`;
+              } else if (toolName === "Bash" && block.input?.command) {
+                const cmd = block.input.command.slice(0, 50);
+                progressMsg = `Running: ${cmd}${block.input.command.length > 50 ? "..." : ""}`;
+              } else if (toolName === "Edit" && block.input?.file_path) {
+                progressMsg = `Editing: ${block.input.file_path}`;
+              } else if (toolName === "Write" && block.input?.file_path) {
+                progressMsg = `Writing: ${block.input.file_path}`;
+              } else if (toolName === "WebSearch" && block.input?.query) {
+                progressMsg = `Searching web: ${block.input.query}`;
+              } else if (toolName === "WebFetch" && block.input?.url) {
+                progressMsg = `Fetching: ${block.input.url}`;
               }
 
-              // Send progress updates for tool usage
-              if (block.type === "tool_use") {
-                const toolName = block.name || "unknown";
-                let progressMsg = `Using ${toolName}...`;
-
-                // Add more context for specific tools
-                if (toolName === "Read" && block.input?.file_path) {
-                  progressMsg = `Reading: ${block.input.file_path}`;
-                } else if (toolName === "Grep" && block.input?.pattern) {
-                  progressMsg = `Searching for: ${block.input.pattern}`;
-                } else if (toolName === "Glob" && block.input?.pattern) {
-                  progressMsg = `Finding files: ${block.input.pattern}`;
-                } else if (toolName === "Bash" && block.input?.command) {
-                  const cmd = block.input.command.slice(0, 50);
-                  progressMsg = `Running: ${cmd}${block.input.command.length > 50 ? "..." : ""}`;
-                } else if (toolName === "Edit" && block.input?.file_path) {
-                  progressMsg = `Editing: ${block.input.file_path}`;
-                } else if (toolName === "Write" && block.input?.file_path) {
-                  progressMsg = `Writing: ${block.input.file_path}`;
-                } else if (toolName === "WebSearch" && block.input?.query) {
-                  progressMsg = `Searching web: ${block.input.query}`;
-                } else if (toolName === "WebFetch" && block.input?.url) {
-                  progressMsg = `Fetching: ${block.input.url}`;
-                }
-
-                logger.info(
-                  { tool: toolName, input: block.input },
-                  progressMsg,
-                );
-                if (onProgress) {
-                  onProgress(progressMsg);
-                }
+              logger.info(
+                { tool: toolName, input: block.input },
+                progressMsg,
+              );
+              if (onProgress) {
+                onProgress(progressMsg);
               }
             }
           }
+        }
 
-          // Log tool results
-          if (event.type === "user" && event.message?.content) {
-            for (const block of event.message.content) {
-              if (block.type === "tool_result") {
-                const result =
-                  typeof block.content === "string"
-                    ? block.content.slice(0, 500)
-                    : JSON.stringify(block.content).slice(0, 500);
-                logger.info(
-                  { toolUseId: block.tool_use_id, isError: block.is_error },
-                  `Tool result: ${result}${result.length >= 500 ? "..." : ""}`,
-                );
-              }
-            }
-          }
-
-          // Capture the final result
-          if (event.type === "result") {
-            logger.debug({ event }, "Claude result event");
-            // Error can be in event.result or event.errors array
-            const errorMessage = event.is_error
-              ? event.result ||
-                (event.errors?.length ? event.errors.join("; ") : undefined)
-              : undefined;
-            lastResult = {
-              success: !event.is_error,
-              output: event.result || "",
-              sessionId: event.session_id || currentSessionId,
-              error: errorMessage,
-            };
-          }
-        } catch {
-          // Not valid JSON, ignore
+        // Check for errors in assistant messages
+        if (message.error) {
+          logger.error({ error: message.error }, "Assistant message error");
         }
       }
-    });
 
-    proc.stderr.on("data", (data: Buffer) => {
-      const chunk = data.toString().trim();
-      if (chunk) {
-        stderrOutput += `${chunk}\n`;
-        logger.debug({ stderr: chunk }, "Claude stderr");
-      }
-    });
-
-    proc.on("close", (code) => {
-      logger.debug({ code }, "Claude process closed");
-
-      if (lastResult) {
-        if (!lastResult.success) {
-          logger.error(
-            {
-              error: lastResult.error,
-              output: lastResult.output?.slice(0, 1000),
-              stderr: stderrOutput,
-            },
-            "Claude returned error",
-          );
+      // Handle user messages (tool results)
+      if (message.type === "user" && message.message?.content) {
+        for (const block of message.message.content) {
+          if (block.type === "tool_result") {
+            const result =
+              typeof block.content === "string"
+                ? block.content.slice(0, 500)
+                : JSON.stringify(block.content).slice(0, 500);
+            logger.info(
+              { toolUseId: block.tool_use_id, isError: block.is_error },
+              `Tool result: ${result}${result.length >= 500 ? "..." : ""}`,
+            );
+          }
         }
-        resolve(lastResult);
-      } else if (code === 0) {
-        // No result event but process succeeded - use last assistant text
-        resolve({
-          success: true,
-          output: lastAssistantText || "No response received",
-          sessionId: currentSessionId,
-        });
-      } else {
-        const errorMsg =
-          stderrOutput.trim() || `Claude exited with code ${code}`;
+      }
+
+      // Handle result message
+      if (message.type === "result") {
+        logger.debug({ message }, "Claude result message");
+
+        const isError = message.is_error;
+        let output = "";
+        let errorMessage: string | undefined;
+
+        if (message.subtype === "success") {
+          output = message.result || lastAssistantText || "";
+        } else {
+          // Error result
+          output = lastAssistantText;
+          errorMessage = message.errors?.join("; ") || `Error: ${message.subtype}`;
+        }
+
+        lastResult = {
+          success: !isError,
+          output,
+          sessionId: message.session_id || currentSessionId,
+          error: errorMessage,
+        };
+      }
+    }
+
+    // Return the final result
+    if (lastResult) {
+      if (!lastResult.success) {
         logger.error(
-          { code, stderr: stderrOutput, lastText: lastAssistantText },
-          "Claude process failed",
+          { error: lastResult.error, output: lastResult.output?.slice(0, 1000) },
+          "Claude returned error",
         );
-        resolve({
-          success: false,
-          output: lastAssistantText,
-          error: errorMsg,
-        });
       }
-    });
+      return lastResult;
+    }
 
-    proc.on("error", (err) => {
-      logger.error({ error: err.message }, "Claude process error");
-      resolve({
-        success: false,
-        output: "",
-        error: `Failed to start ${claudeCommand}: ${err.message}`,
-      });
-    });
-  });
+    // No result message but query succeeded - use last assistant text
+    return {
+      success: true,
+      output: lastAssistantText || "No response received",
+      sessionId: currentSessionId,
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error({ error: errorMsg }, "Claude SDK error");
+    return {
+      success: false,
+      output: "",
+      error: `Failed to execute query: ${errorMsg}`,
+    };
+  }
 }

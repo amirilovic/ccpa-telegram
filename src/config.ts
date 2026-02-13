@@ -60,9 +60,6 @@ const ConfigSchema = z.object({
   logging: z.object({
     level: z.enum(["debug", "info", "warn", "error"]).default("info"),
   }),
-  claude: z.object({
-    command: z.string().default("claude"),
-  }),
   transcription: z
     .object({
       model: TranscriptionModelSchema.default("base.en"),
@@ -97,12 +94,6 @@ const ConfigFileSchema = z
     logging: z
       .object({
         level: z.enum(["debug", "info", "warn", "error"]),
-      })
-      .partial()
-      .optional(),
-    claude: z
-      .object({
-        command: z.string(),
       })
       .partial()
       .optional(),
@@ -187,10 +178,6 @@ export function loadConfig(): Config {
     },
     logging: {
       level: process.env.LOG_LEVEL || fileConfig.logging?.level || "info",
-    },
-    claude: {
-      command:
-        process.env.CLAUDE_COMMAND || fileConfig.claude?.command || "claude",
     },
     transcription: {
       model:

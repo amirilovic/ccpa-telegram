@@ -1,10 +1,10 @@
 # ccpa-telegram
 
-A Telegram bot that provides access to Claude Code as a personal assistant. Run Claude Code in any directory and interact with it through Telegram.
+A Telegram bot that provides access to Claude as a personal assistant. Interact with Claude through Telegram with full access to file operations, code execution, and MCP tools.
 
 ## Features
 
-- Chat with Claude Code via Telegram
+- Chat with Claude via Telegram
 - Send images and documents for analysis
 - **Voice message support** with local Whisper transcription
 - **File sending** - Claude can send files back to you
@@ -14,21 +14,21 @@ A Telegram bot that provides access to Claude Code as a personal assistant. Run 
 
 ## How It Works
 
-This bot runs Claude Code as a subprocess in your chosen working directory. Claude Code reads all its standard configuration files from that directory, exactly as it would when running directly in a terminal:
+This bot uses the [@anthropic-ai/claude-agent-sdk](https://github.com/anthropics/claude-agent-sdk-typescript) to provide Claude's capabilities in your chosen working directory. Claude reads all its standard configuration files from that directory:
 
 - `CLAUDE.md` - Project-specific instructions and context
 - `.claude/settings.json` - Permissions and tool settings
 - `.claude/commands/` - Custom slash commands
 - `.mcp.json` - MCP server configurations
 
-This means you get the full power of Claude Code - including file access, code execution, and any configured MCP tools - all accessible through Telegram.
+This means you get the full power of Claude - including file access, code execution, and any configured MCP tools - all accessible through Telegram.
 
-For complete documentation on Claude Code configuration, see the [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code).
+For complete documentation on Claude configuration, see the [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code).
 
 ## Prerequisites
 
 - Node.js 18+
-- [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated.
+- An Anthropic API key (get one at [console.anthropic.com](https://console.anthropic.com))
 - A Telegram bot token (from [@BotFather](https://t.me/BotFather)). See [Creating a Telegram Bot](#creating-a-telegram-bot) for instructions.
 - **ffmpeg** (required for voice messages) - install with `brew install ffmpeg` on macOS
 
@@ -39,6 +39,9 @@ For complete documentation on Claude Code configuration, see the [Claude Code do
 npx ccpa-telegram init
 
 # Edit ccpa.config.json with your bot token and allowed user IDs
+
+# Set your Anthropic API key
+export ANTHROPIC_API_KEY=your_api_key_here
 
 # Start the bot
 npx ccpa-telegram
@@ -67,9 +70,6 @@ Create a `ccpa.config.json` file in your project directory:
   "access": {
     "allowedUserIds": [123456789]
   },
-  "claude": {
-    "command": "claude"
-  },
   "logging": {
     "level": "info"
   },
@@ -86,7 +86,6 @@ Create a `ccpa.config.json` file in your project directory:
 | ------------------------------- | -------------------------------------------------------------- | ---------- |
 | `telegram.botToken`             | Telegram bot token from BotFather                              | Required   |
 | `access.allowedUserIds`         | Array of Telegram user IDs allowed to use the bot              | `[]`       |
-| `claude.command`                | Claude CLI command                                             | `"claude"` |
 | `logging.level`                 | Log level: debug, info, warn, error                            | `"info"`   |
 | `transcription.model`           | Whisper model (see [Voice Messages](#voice-messages))          | `"base.en"`|
 | `transcription.showTranscription` | Show transcribed text before Claude response                 | `true`     |
@@ -97,9 +96,9 @@ Environment variables override config file values:
 
 | Variable             | Description                          |
 | -------------------- | ------------------------------------ |
+| `ANTHROPIC_API_KEY`  | Anthropic API key (required)         |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token                   |
 | `ALLOWED_USER_IDS`   | Comma-separated user IDs             |
-| `CLAUDE_COMMAND`     | Claude CLI command                   |
 | `LOG_LEVEL`          | Logging level                        |
 | `WHISPER_MODEL`      | Whisper model for voice transcription |
 | `SHOW_TRANSCRIPTION` | Show transcription (true/false)      |

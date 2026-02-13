@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import { Bot } from "grammy";
 import { clearHandler } from "./bot/commands/clear.js";
 import { helpHandler } from "./bot/commands/help.js";
@@ -14,26 +13,6 @@ import { rateLimitMiddleware } from "./bot/middleware/rateLimit.js";
 import { getConfig, getWorkingDirectory } from "./config.js";
 import { getLogger, initLogger } from "./logger.js";
 
-/**
- * Check if the Claude CLI command is available
- */
-function checkClaudeCommand(
-  command: string,
-  logger: ReturnType<typeof getLogger>,
-): void {
-  try {
-    execSync(`${command} --version`, { stdio: "pipe" });
-  } catch {
-    logger.fatal(
-      { command },
-      `Claude CLI command "${command}" not found or not executable. ` +
-        `Please ensure Claude Code is installed and the command is in your PATH. ` +
-        `You can also set a custom command in ccpa.config.json under "claude.command".`,
-    );
-    process.exit(1);
-  }
-}
-
 export async function startBot(): Promise<void> {
   const config = getConfig();
   const workingDir = getWorkingDirectory();
@@ -45,10 +24,16 @@ export async function startBot(): Promise<void> {
   logger.info({ workingDir }, "Working directory");
   logger.info({ dataDir: config.dataDir }, "Data directory");
 
-  // Verify Claude CLI is available
-  logger.debug({ command: config.claude.command }, "Checking Claude CLI");
-  checkClaudeCommand(config.claude.command, logger);
-  logger.info({ command: config.claude.command }, "Claude CLI verified");
+  // Check for Anthropic API key
+  if (!process.env.ANTHROPIC_API_KEY) {
+    logger.fatal(
+      "ANTHROPIC_API_KEY environment variable is required. " +
+        "Get your API key at https://console.anthropic.com",
+    );
+    process.exit(1);
+  }
+
+  logger.info("Claude Agent SDK ready");
 
   // Create bot instance
   const bot = new Bot(config.telegram.botToken);
