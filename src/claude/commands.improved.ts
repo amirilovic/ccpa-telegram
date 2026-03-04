@@ -93,7 +93,19 @@ function sanitizeDescription(description: string): string {
   // Remove or escape potentially dangerous characters
   return description
     .replace(/[<>]/g, "") // Remove HTML-like brackets
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Remove control characters
+    .split("")
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      // Remove control characters (0-8, 11, 12, 14-31, 127)
+      return !(
+        code <= 8 ||
+        code === 11 ||
+        code === 12 ||
+        (code >= 14 && code <= 31) ||
+        code === 127
+      );
+    })
+    .join("")
     .trim()
     .slice(0, 200); // Limit length to prevent abuse
 }
@@ -102,7 +114,7 @@ function sanitizeDescription(description: string): string {
  * Parse frontmatter from a markdown file with improved error handling
  */
 function parseFrontmatter(content: string): {
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   content: string;
 } {
   const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
@@ -113,7 +125,7 @@ function parseFrontmatter(content: string): {
   }
 
   const [, frontmatter, markdownContent] = match;
-  const data: Record<string, any> = {};
+  const data: Record<string, unknown> = {};
 
   try {
     // Simple YAML-like parsing for description with improved safety
@@ -204,7 +216,8 @@ export async function discoverClaudeCommands(): Promise<ClaudeCommand[]> {
         command = {
           name: commandName,
           filePath,
-          description: data.description,
+          description:
+            typeof data.description === "string" ? data.description : undefined,
           content,
           isValid: validation.isValid,
           validationError: validation.error,

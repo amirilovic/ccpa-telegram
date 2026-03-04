@@ -38,7 +38,7 @@ describe("Dynamic Commands - Registration and Help", () => {
       debug: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof getLogger>);
 
     // Mock command executor
     vi.mocked(executeClaudeCommand).mockResolvedValue(undefined);
@@ -474,7 +474,9 @@ describe("Dynamic Commands - Registration and Help", () => {
       } as unknown as Context;
 
       // Should not throw error, should handle gracefully
-      await expect((handler as (ctx: Context) => Promise<void>)(mockCtx)).rejects.toThrow("Execution failed");
+      await expect(
+        (handler as (ctx: Context) => Promise<void>)(mockCtx),
+      ).rejects.toThrow("Execution failed");
     });
   });
 });

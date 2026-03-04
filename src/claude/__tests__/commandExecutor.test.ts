@@ -42,8 +42,13 @@ describe("Command Executor - Integration Tests", () => {
 
     // Mock config
     vi.mocked(getConfig).mockReturnValue({
+      telegram: { botToken: "test-token" },
+      access: { allowedUserIds: [] },
       dataDir: "/test/data",
-    } as any);
+      rateLimit: { max: 100, windowMs: 60000 },
+      logging: { level: "info" },
+      claude: { command: "claude" },
+    });
 
     // Mock logger
     vi.mocked(getLogger).mockReturnValue({
@@ -51,7 +56,7 @@ describe("Command Executor - Integration Tests", () => {
       debug: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof getLogger>);
 
     // Mock user setup functions
     vi.mocked(ensureUserSetup).mockResolvedValue();

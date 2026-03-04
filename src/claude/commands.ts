@@ -29,7 +29,10 @@ export interface ClaudeCommand {
 /**
  * Validate that a command name doesn't conflict with built-in commands
  */
-function validateCommandName(commandName: string, logger: any): boolean {
+function validateCommandName(
+  commandName: string,
+  logger: ReturnType<typeof import("../logger.js").getLogger>,
+): boolean {
   if (RESERVED_COMMANDS.has(commandName)) {
     logger.warn(
       { commandName, reserved: Array.from(RESERVED_COMMANDS) },
@@ -55,9 +58,9 @@ function validateCommandName(commandName: string, logger: any): boolean {
  */
 function parseFrontmatter(
   content: string,
-  logger: any,
+  logger: ReturnType<typeof import("../logger.js").getLogger>,
 ): {
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   content: string;
   warnings?: string[];
 } {
@@ -69,7 +72,7 @@ function parseFrontmatter(
   }
 
   const [, frontmatter, markdownContent] = match;
-  const data: Record<string, any> = {};
+  const data: Record<string, unknown> = {};
   const warnings: string[] = [];
 
   try {
@@ -149,12 +152,13 @@ export async function discoverClaudeCommands(
 
       try {
         const content = await readFile(filePath, "utf-8");
-        const { data, warnings } = parseFrontmatter(content, logger);
+        const { data, warnings: _warnings } = parseFrontmatter(content, logger);
 
         commands.push({
           name: commandName,
           filePath,
-          description: data.description,
+          description:
+            typeof data.description === "string" ? data.description : undefined,
           content,
         });
 

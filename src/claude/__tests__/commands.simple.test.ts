@@ -14,8 +14,8 @@ vi.mock("node:fs/promises", () => {
   const mockReadFile = vi.fn();
 
   // Export the mocks to be accessible in tests
-  (global as any).__mockReaddir = mockReaddir;
-  (global as any).__mockReadFile = mockReadFile;
+  (global as unknown as Record<string, unknown>).__mockReaddir = mockReaddir;
+  (global as unknown as Record<string, unknown>).__mockReadFile = mockReadFile;
 
   return {
     readdir: mockReaddir,
@@ -24,8 +24,8 @@ vi.mock("node:fs/promises", () => {
 });
 
 // Get references to the mocks
-const mockReaddir = (global as any).__mockReaddir;
-const mockReadFile = (global as any).__mockReadFile;
+const mockReaddir = (global as any).__mockReaddir as ReturnType<typeof vi.fn>;
+const mockReadFile = (global as any).__mockReadFile as ReturnType<typeof vi.fn>;
 
 describe("Claude Commands - Core Functionality", () => {
   const testWorkingDir = "/test/working";
@@ -46,7 +46,7 @@ describe("Claude Commands - Core Functionality", () => {
       debug: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof getLogger>);
   });
 
   afterEach(() => {

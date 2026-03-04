@@ -11,7 +11,7 @@ import {
   saveSessionId,
 } from "../user/setup.js";
 import { getValidClaudeCommand } from "./commands.improved.js";
-import { executeClaudeQuery } from "./executor.js";
+import { type ExecuteResult, executeClaudeQuery } from "./executor.js";
 
 /**
  * Rate limiting for command execution to prevent abuse
@@ -47,7 +47,19 @@ function sanitizeArguments(args: string): string {
     args
       // Remove or escape potentially dangerous sequences
       .replace(/[<>]/g, "") // Remove HTML-like brackets
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Remove control characters
+      .split("")
+      .filter((char) => {
+        const code = char.charCodeAt(0);
+        // Remove control characters (0-8, 11, 12, 14-31, 127)
+        return !(
+          code <= 8 ||
+          code === 11 ||
+          code === 12 ||
+          (code >= 14 && code <= 31) ||
+          code === 127
+        );
+      })
+      .join("")
       .replace(/\${[^}]*}/g, "") // Remove variable interpolation patterns
       .trim()
       .slice(0, 1000)
@@ -92,7 +104,7 @@ class ProgressTracker {
   constructor(
     private ctx: Context,
     private statusMessageId: number,
-    private logger: any,
+    private logger: ReturnType<typeof import("../logger.js").getLogger>,
   ) {}
 
   async updateProgress(message: string): Promise<void> {
@@ -245,7 +257,7 @@ export async function executeClaudeCommand(
     logger.debug({ commandName, userId }, "Starting Claude command execution");
 
     const startTime = Date.now();
-    let result;
+    let result: ExecuteResult;
 
     try {
       result = await executeClaudeQuery({

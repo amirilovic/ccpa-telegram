@@ -32,7 +32,7 @@ describe("Improved Claude Commands - Performance and Validation", () => {
       debug: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-    } as any);
+    } as unknown as ReturnType<typeof getLogger>);
   });
 
   afterEach(() => {
