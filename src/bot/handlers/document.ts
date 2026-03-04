@@ -59,6 +59,7 @@ export async function documentHandler(ctx: Context): Promise<void> {
   const userId = ctx.from?.id;
   const document = ctx.message?.document;
   const caption = ctx.message?.caption || "Please analyze this document.";
+  const messageTimestamp = ctx.message?.date;
 
   if (!userId || !document) {
     return;
@@ -143,6 +144,7 @@ export async function documentHandler(ctx: Context): Promise<void> {
       downloadsPath,
       sessionId,
       onProgress,
+      messageTimestamp,
     });
 
     try {
