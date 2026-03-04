@@ -75,12 +75,14 @@ export async function textHandler(ctx: Context): Promise<void> {
     };
 
     const downloadsPath = getDownloadsPath(userDir);
+    const messageTimestamp = ctx.message?.date;
 
     logger.debug("Executing Claude query");
     const result = await executeClaudeQuery({
       prompt: messageText,
       userDir,
       downloadsPath,
+      messageTimestamp,
       sessionId,
       onProgress,
     });
