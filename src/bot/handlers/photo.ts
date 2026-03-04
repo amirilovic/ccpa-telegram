@@ -24,6 +24,7 @@ export async function photoHandler(ctx: Context): Promise<void> {
   const userId = ctx.from?.id;
   const photo = ctx.message?.photo;
   const caption = ctx.message?.caption || "Please analyze this image.";
+  const messageTimestamp = ctx.message?.date;
 
   if (!userId || !photo || photo.length === 0) {
     return;
@@ -94,6 +95,7 @@ export async function photoHandler(ctx: Context): Promise<void> {
       downloadsPath,
       sessionId,
       onProgress,
+      messageTimestamp,
     });
 
     try {
