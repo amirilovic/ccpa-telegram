@@ -85,19 +85,14 @@ describe("Message Handlers - Timestamp Extraction", () => {
     vi.mocked(unlink).mockResolvedValue();
 
     // Mock child_process (for ffmpeg in voice handler)
-    vi.mocked(exec).mockImplementation((cmd, callback) => {
-      // Simulate successful ffmpeg execution
-      setTimeout(() => {
-        if (typeof callback === "function") {
-          callback(null, "ffmpeg success", "");
-        }
-      }, 0);
-      return {
-        pid: 123,
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn(),
-      } as any;
+    vi.mocked(exec).mockImplementation((...args: any[]) => {
+      // Get the callback which is typically the last argument
+      const callback = args[args.length - 1];
+      if (typeof callback === "function") {
+        // Simulate successful ffmpeg execution
+        process.nextTick(() => callback(null, "ffmpeg success", ""));
+      }
+      return {} as any;
     });
   });
 
