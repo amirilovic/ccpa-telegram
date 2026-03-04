@@ -22,3 +22,6 @@ data/
 
 **/.env
 **/.ccpa
+
+# Worktrees
+.worktrees/

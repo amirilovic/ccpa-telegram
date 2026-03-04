@@ -6,6 +6,7 @@ export interface ExecuteOptions {
   prompt: string;
   userDir: string;
   downloadsPath?: string;
+  messageTimestamp?: number;
   sessionId?: string | null;
   onProgress?: (message: string) => void;
 }
@@ -23,13 +24,31 @@ export interface ExecuteResult {
 export async function executeClaudeQuery(
   options: ExecuteOptions,
 ): Promise<ExecuteResult> {
-  const { prompt, downloadsPath, sessionId, onProgress } = options;
+  const { prompt, downloadsPath, messageTimestamp, sessionId, onProgress } =
+    options;
   const logger = getLogger();
 
-  // Append downloads path info to prompt if provided
-  const fullPrompt = downloadsPath
-    ? `${prompt}\n\n[System: To send files to the user, write them to: ${downloadsPath}]`
-    : prompt;
+  // Build system context parts
+  const systemParts: string[] = [];
+
+  // Add downloads path if provided
+  if (downloadsPath) {
+    systemParts.push(
+      `To send files to the user, write them to: ${downloadsPath}`,
+    );
+  }
+
+  // Add timestamp if provided
+  if (messageTimestamp) {
+    const isoString = new Date(messageTimestamp * 1000).toISOString();
+    systemParts.push(`Message timestamp: ${isoString} (${messageTimestamp})`);
+  }
+
+  // Append system context to prompt if any parts exist
+  const fullPrompt =
+    systemParts.length > 0
+      ? `${prompt}\n\n[System: ${systemParts.join(" | ")}]`
+      : prompt;
 
   const args: string[] = [
     "-p",

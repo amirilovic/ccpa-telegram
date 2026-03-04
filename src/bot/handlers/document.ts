@@ -135,12 +135,14 @@ export async function documentHandler(ctx: Context): Promise<void> {
     };
 
     const downloadsPath = getDownloadsPath(userDir);
+    const messageTimestamp = ctx.message?.date;
 
     logger.debug("Executing Claude query with document");
     const result = await executeClaudeQuery({
       prompt,
       userDir,
       downloadsPath,
+      messageTimestamp,
       sessionId,
       onProgress,
     });

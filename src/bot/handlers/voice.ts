@@ -162,6 +162,7 @@ export async function voiceHandler(ctx: Context): Promise<void> {
     };
 
     const downloadsPath = getDownloadsPath(userDir);
+    const messageTimestamp = ctx.message?.date;
 
     logger.debug(
       { transcription: transcription.text },
@@ -171,6 +172,7 @@ export async function voiceHandler(ctx: Context): Promise<void> {
       prompt: transcription.text,
       userDir,
       downloadsPath,
+      messageTimestamp,
       sessionId,
       onProgress,
     });
