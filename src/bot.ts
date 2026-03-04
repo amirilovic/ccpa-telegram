@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import { Bot } from "grammy";
 import { clearHandler } from "./bot/commands/clear.js";
+import { registerDynamicCommands } from "./bot/commands/dynamic.js";
 import { helpHandler } from "./bot/commands/help.js";
 import { startHandler } from "./bot/commands/start.js";
 import {
@@ -57,10 +58,13 @@ export async function startBot(): Promise<void> {
   bot.use(authMiddleware);
   bot.use(rateLimitMiddleware);
 
-  // Register commands
+  // Register built-in commands
   bot.command("start", startHandler);
   bot.command("help", helpHandler);
   bot.command("clear", clearHandler);
+
+  // Register dynamic Claude commands
+  await registerDynamicCommands(bot);
 
   // Text message handler
   bot.on("message:text", textHandler);
