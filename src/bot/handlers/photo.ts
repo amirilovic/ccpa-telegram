@@ -86,12 +86,14 @@ export async function photoHandler(ctx: Context): Promise<void> {
     };
 
     const downloadsPath = getDownloadsPath(userDir);
+    const messageTimestamp = ctx.message?.date;
 
     logger.debug("Executing Claude query with image");
     const result = await executeClaudeQuery({
       prompt,
       userDir,
       downloadsPath,
+      messageTimestamp,
       sessionId,
       onProgress,
     });
