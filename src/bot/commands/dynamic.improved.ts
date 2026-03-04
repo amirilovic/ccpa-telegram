@@ -145,7 +145,7 @@ export async function getDynamicCommandsHelp(): Promise<string> {
       // Truncate very long descriptions for better formatting
       const truncatedDescription =
         description.length > 80
-          ? description.slice(0, 77) + "..."
+          ? `${description.slice(0, 77)}...`
           : description;
 
       help += `/${command.name} - ${truncatedDescription}\n`;

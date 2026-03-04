@@ -287,7 +287,7 @@ export async function getValidClaudeCommand(
   commandName: string,
 ): Promise<ClaudeCommand | null> {
   const command = await getClaudeCommand(commandName);
-  return command && command.isValid ? command : null;
+  return command?.isValid ? command : null;
 }
 
 /**

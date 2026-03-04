@@ -6,12 +6,7 @@ import { getLogger } from "../logger.js";
 /**
  * Built-in Telegram bot commands that cannot be overridden
  */
-const RESERVED_COMMANDS = new Set([
-  'start',
-  'help',
-  'clear',
-  'dynamic'
-]);
+const RESERVED_COMMANDS = new Set(["start", "help", "clear", "dynamic"]);
 
 /**
  * Cache for discovered commands to improve performance
@@ -38,7 +33,7 @@ function validateCommandName(commandName: string, logger: any): boolean {
   if (RESERVED_COMMANDS.has(commandName)) {
     logger.warn(
       { commandName, reserved: Array.from(RESERVED_COMMANDS) },
-      `Skipping Claude command '${commandName}' - conflicts with built-in command`
+      `Skipping Claude command '${commandName}' - conflicts with built-in command`,
     );
     return false;
   }
@@ -47,7 +42,7 @@ function validateCommandName(commandName: string, logger: any): boolean {
   if (!/^[a-zA-Z0-9._-]+$/.test(commandName)) {
     logger.warn(
       { commandName },
-      `Skipping Claude command '${commandName}' - invalid command name format`
+      `Skipping Claude command '${commandName}' - invalid command name format`,
     );
     return false;
   }
@@ -58,7 +53,10 @@ function validateCommandName(commandName: string, logger: any): boolean {
 /**
  * Parse frontmatter from a markdown file
  */
-function parseFrontmatter(content: string, logger: any): {
+function parseFrontmatter(
+  content: string,
+  logger: any,
+): {
   data: Record<string, any>;
   content: string;
   warnings?: string[];
@@ -110,13 +108,22 @@ function parseFrontmatter(content: string, logger: any): {
 /**
  * Discover all Claude commands in the working directory
  */
-export async function discoverClaudeCommands(forceRefresh = false): Promise<ClaudeCommand[]> {
+export async function discoverClaudeCommands(
+  forceRefresh = false,
+): Promise<ClaudeCommand[]> {
   const logger = getLogger();
 
   // Check cache validity
   const now = Date.now();
-  if (!forceRefresh && commandCache !== null && (now - cacheTimestamp) < CACHE_TTL) {
-    logger.debug({ cacheAge: now - cacheTimestamp }, "Using cached Claude commands");
+  if (
+    !forceRefresh &&
+    commandCache !== null &&
+    now - cacheTimestamp < CACHE_TTL
+  ) {
+    logger.debug(
+      { cacheAge: now - cacheTimestamp },
+      "Using cached Claude commands",
+    );
     return commandCache;
   }
 

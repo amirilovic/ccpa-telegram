@@ -18,7 +18,7 @@ vi.mock("node:fs/promises", () => ({
 
 describe("Improved Claude Commands - Performance and Validation", () => {
   const testWorkingDir = "/test/working";
-  const testCommandsDir = join(testWorkingDir, ".claude", "commands");
+  const _testCommandsDir = join(testWorkingDir, ".claude", "commands");
 
   beforeEach(() => {
     vi.clearAllMocks();

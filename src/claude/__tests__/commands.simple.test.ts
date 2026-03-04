@@ -221,7 +221,7 @@ Content`);
 
       const commands = await discoverClaudeCommands();
       expect(commands[0].description).toBe(
-        'Quoted description with special chars: !@#$%',
+        "Quoted description with special chars: !@#$%",
       );
     });
 

@@ -15,7 +15,7 @@ vi.mock("../../logger.js");
 
 describe("Dynamic Commands - Registration and Help", () => {
   let mockBot: Bot;
-  let mockContext: Context;
+  let _mockContext: Context;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +26,7 @@ describe("Dynamic Commands - Registration and Help", () => {
     } as unknown as Bot;
 
     // Mock context
-    mockContext = {
+    _mockContext = {
       message: {
         text: "/test-command arg1 arg2",
       },
@@ -147,7 +147,7 @@ describe("Dynamic Commands - Registration and Help", () => {
         },
       } as unknown as Context;
 
-      await handler(mockCtx);
+      await (handler as (ctx: Context) => Promise<void>)(mockCtx);
 
       expect(executeClaudeCommand).toHaveBeenCalledWith(
         mockCtx,
@@ -180,7 +180,7 @@ describe("Dynamic Commands - Registration and Help", () => {
         },
       } as unknown as Context;
 
-      await handler(mockCtx);
+      await (handler as (ctx: Context) => Promise<void>)(mockCtx);
 
       expect(executeClaudeCommand).toHaveBeenCalledWith(
         mockCtx,
@@ -213,7 +213,7 @@ describe("Dynamic Commands - Registration and Help", () => {
         },
       } as unknown as Context;
 
-      await handler(mockCtx);
+      await (handler as (ctx: Context) => Promise<void>)(mockCtx);
 
       expect(executeClaudeCommand).toHaveBeenCalledWith(
         mockCtx,
@@ -244,7 +244,7 @@ describe("Dynamic Commands - Registration and Help", () => {
         message: {},
       } as unknown as Context;
 
-      await handler(mockCtx);
+      await (handler as (ctx: Context) => Promise<void>)(mockCtx);
 
       expect(executeClaudeCommand).toHaveBeenCalledWith(
         mockCtx,
@@ -408,7 +408,7 @@ describe("Dynamic Commands - Registration and Help", () => {
           message: { text: testCase.text },
         } as unknown as Context;
 
-        await handler(mockCtx);
+        await (handler as (ctx: Context) => Promise<void>)(mockCtx);
 
         expect(executeClaudeCommand).toHaveBeenCalledWith(
           mockCtx,
@@ -474,7 +474,7 @@ describe("Dynamic Commands - Registration and Help", () => {
       } as unknown as Context;
 
       // Should not throw error, should handle gracefully
-      await expect(handler(mockCtx)).rejects.toThrow("Execution failed");
+      await expect((handler as (ctx: Context) => Promise<void>)(mockCtx)).rejects.toThrow("Execution failed");
     });
   });
 });

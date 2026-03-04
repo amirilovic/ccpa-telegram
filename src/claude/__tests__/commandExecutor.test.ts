@@ -333,7 +333,7 @@ describe("Command Executor - Integration Tests", () => {
 
       vi.mocked(getClaudeCommand).mockResolvedValue(mockCommand);
 
-      let progressCallback: ((message: string) => Promise<void>) | undefined;
+      let progressCallback: ((message: string) => void) | undefined;
 
       vi.mocked(executeClaudeQuery).mockImplementation(async (options) => {
         progressCallback = options.onProgress;
@@ -378,7 +378,7 @@ describe("Command Executor - Integration Tests", () => {
         new Error("Edit failed"),
       );
 
-      let progressCallback: ((message: string) => Promise<void>) | undefined;
+      let progressCallback: ((message: string) => void) | undefined;
 
       vi.mocked(executeClaudeQuery).mockImplementation(async (options) => {
         progressCallback = options.onProgress;
@@ -411,11 +411,11 @@ describe("Command Executor - Integration Tests", () => {
 
       // Mock Date.now to simulate time passage
       let currentTime = 1000000000; // baseline time
-      const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
+      const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
         return currentTime;
       });
 
-      let progressCallback: ((message: string) => Promise<void>) | undefined;
+      let progressCallback: ((message: string) => void) | undefined;
 
       vi.mocked(executeClaudeQuery).mockImplementation(async (options) => {
         progressCallback = options.onProgress;
