@@ -1,14 +1,14 @@
 import type { Bot, Context } from "grammy";
 import { executeClaudeCommand } from "../../claude/commandExecutor.js";
 import {
-  getValidClaudeCommands,
-  getCommandValidationErrors,
   clearCommandsCache,
+  getCommandValidationErrors,
+  getValidClaudeCommands,
 } from "../../claude/commands.improved.js";
 import { getLogger } from "../../logger.js";
 
 // Cache registered command names to avoid duplicate registrations
-let registeredCommands: Set<string> = new Set();
+const registeredCommands: Set<string> = new Set();
 
 /**
  * Register all valid discovered Claude commands with the Telegram bot
@@ -22,14 +22,17 @@ export async function registerDynamicCommands(bot: Bot): Promise<void> {
     const validationErrors = await getCommandValidationErrors();
 
     if (validationErrors.length > 0) {
-      logger.warn({
-        errors: validationErrors,
-        count: validationErrors.length,
-      }, 'Found invalid Claude commands that will be skipped');
+      logger.warn(
+        {
+          errors: validationErrors,
+          count: validationErrors.length,
+        },
+        "Found invalid Claude commands that will be skipped",
+      );
     }
 
     if (commands.length === 0) {
-      logger.debug('No valid Claude commands found to register');
+      logger.debug("No valid Claude commands found to register");
       return;
     }
 
@@ -41,7 +44,10 @@ export async function registerDynamicCommands(bot: Bot): Promise<void> {
       try {
         // Skip if already registered
         if (registeredCommands.has(command.name)) {
-          logger.debug({ commandName: command.name }, 'Command already registered, skipping');
+          logger.debug(
+            { commandName: command.name },
+            "Command already registered, skipping",
+          );
           skippedCount++;
           continue;
         }
@@ -64,18 +70,18 @@ export async function registerDynamicCommands(bot: Bot): Promise<void> {
                 commandName: command.name,
                 userId: ctx.from?.id,
               },
-              'Error in dynamic command handler'
+              "Error in dynamic command handler",
             );
 
             // Send user-friendly error message
             try {
               await ctx.reply(
                 `❌ An error occurred while executing /${command.name}. Please try again later.`,
-                { parse_mode: 'Markdown' }
+                { parse_mode: "Markdown" },
               );
             } catch (replyError) {
               // If even the error reply fails, just log it
-              logger.error({ error: replyError }, 'Failed to send error reply');
+              logger.error({ error: replyError }, "Failed to send error reply");
             }
           }
         };
@@ -91,12 +97,12 @@ export async function registerDynamicCommands(bot: Bot): Promise<void> {
             description: command.description,
             filePath: command.filePath,
           },
-          'Registered dynamic Claude command'
+          "Registered dynamic Claude command",
         );
       } catch (error) {
         logger.error(
           { error, commandName: command.name },
-          'Failed to register individual command'
+          "Failed to register individual command",
         );
         skippedCount++;
       }
@@ -109,10 +115,10 @@ export async function registerDynamicCommands(bot: Bot): Promise<void> {
         invalid: validationErrors.length,
         total: commands.length + validationErrors.length,
       },
-      'Dynamic Claude command registration complete'
+      "Dynamic Claude command registration complete",
     );
   } catch (error) {
-    logger.error({ error }, 'Failed to register dynamic commands');
+    logger.error({ error }, "Failed to register dynamic commands");
   }
 }
 
@@ -130,14 +136,17 @@ export async function getDynamicCommandsHelp(): Promise<string> {
     let help = "*Claude Commands:*\n";
 
     // Sort commands alphabetically for better UX
-    const sortedCommands = commands.sort((a, b) => a.name.localeCompare(b.name));
+    const sortedCommands = commands.sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
 
     for (const command of sortedCommands) {
       const description = command.description || "No description available";
       // Truncate very long descriptions for better formatting
-      const truncatedDescription = description.length > 80
-        ? description.slice(0, 77) + "..."
-        : description;
+      const truncatedDescription =
+        description.length > 80
+          ? description.slice(0, 77) + "..."
+          : description;
 
       help += `/${command.name} - ${truncatedDescription}\n`;
     }
@@ -167,12 +176,12 @@ export async function refreshDynamicCommands(bot: Bot): Promise<void> {
     clearCommandsCache();
     registeredCommands.clear();
 
-    logger.info('Cleared command caches, re-registering commands');
+    logger.info("Cleared command caches, re-registering commands");
 
     // Re-register commands
     await registerDynamicCommands(bot);
   } catch (error) {
-    logger.error({ error }, 'Failed to refresh dynamic commands');
+    logger.error({ error }, "Failed to refresh dynamic commands");
   }
 }
 
@@ -195,7 +204,7 @@ export async function getDynamicCommandStats(): Promise<{
     };
   } catch (error) {
     const logger = getLogger();
-    logger.error({ error }, 'Failed to get command stats');
+    logger.error({ error }, "Failed to get command stats");
 
     return {
       registered: 0,
@@ -210,7 +219,18 @@ export async function getDynamicCommandStats(): Promise<{
  */
 export function wouldConflictWithBuiltIn(commandName: string): boolean {
   // Use the same built-in list from the commands module
-  const builtIns = ['start', 'help', 'clear', 'stop', 'restart', 'settings', 'version', 'status', 'ping', 'cancel'];
+  const builtIns = [
+    "start",
+    "help",
+    "clear",
+    "stop",
+    "restart",
+    "settings",
+    "version",
+    "status",
+    "ping",
+    "cancel",
+  ];
   return builtIns.includes(commandName.toLowerCase());
 }
 

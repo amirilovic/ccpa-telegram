@@ -25,22 +25,25 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 // Built-in Telegram bot commands that should not be overridden
 const BUILT_IN_COMMANDS = new Set([
-  'start',
-  'help',
-  'clear',
-  'stop',
-  'restart',
-  'settings',
-  'version',
-  'status',
-  'ping',
-  'cancel',
+  "start",
+  "help",
+  "clear",
+  "stop",
+  "restart",
+  "settings",
+  "version",
+  "status",
+  "ping",
+  "cancel",
 ]);
 
 /**
  * Validate command name to prevent conflicts and security issues
  */
-function validateCommandName(name: string): { isValid: boolean; error?: string } {
+function validateCommandName(name: string): {
+  isValid: boolean;
+  error?: string;
+} {
   // Check for built-in command conflicts
   if (BUILT_IN_COMMANDS.has(name)) {
     return {
@@ -61,7 +64,7 @@ function validateCommandName(name: string): { isValid: boolean; error?: string }
   if (name.length < 1) {
     return {
       isValid: false,
-      error: 'Command name cannot be empty',
+      error: "Command name cannot be empty",
     };
   }
 
@@ -89,8 +92,8 @@ function validateCommandName(name: string): { isValid: boolean; error?: string }
 function sanitizeDescription(description: string): string {
   // Remove or escape potentially dangerous characters
   return description
-    .replace(/[<>]/g, '') // Remove HTML-like brackets
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[<>]/g, "") // Remove HTML-like brackets
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Remove control characters
     .trim()
     .slice(0, 200); // Limit length to prevent abuse
 }
@@ -114,20 +117,22 @@ function parseFrontmatter(content: string): {
 
   try {
     // Simple YAML-like parsing for description with improved safety
-    const lines = frontmatter.split('\n');
+    const lines = frontmatter.split("\n");
     for (const line of lines) {
-      const colonIndex = line.indexOf(':');
+      const colonIndex = line.indexOf(":");
       if (colonIndex > 0) {
         const key = line.slice(0, colonIndex).trim();
         let value = line.slice(colonIndex + 1).trim();
 
         // Remove quotes if present
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
           value = value.slice(1, -1);
         }
 
-        if (key === 'description' && value) {
+        if (key === "description" && value) {
           // Sanitize description for security
           data.description = sanitizeDescription(value);
         }
@@ -136,7 +141,7 @@ function parseFrontmatter(content: string): {
   } catch (error) {
     // If frontmatter parsing fails, log warning but continue
     const logger = getLogger();
-    logger.warn({ error, frontmatter }, 'Failed to parse frontmatter');
+    logger.warn({ error, frontmatter }, "Failed to parse frontmatter");
   }
 
   return { data, content: markdownContent };
@@ -154,7 +159,7 @@ export function clearCommandsCache(): void {
  * Check if cache is still valid
  */
 function isCacheValid(): boolean {
-  return commandsCache !== null && (Date.now() - cacheTimestamp) < CACHE_DURATION;
+  return commandsCache !== null && Date.now() - cacheTimestamp < CACHE_DURATION;
 }
 
 /**
@@ -165,12 +170,15 @@ export async function discoverClaudeCommands(): Promise<ClaudeCommand[]> {
 
   // Return cached commands if cache is still valid
   if (isCacheValid()) {
-    logger.debug({ cached: true, count: commandsCache!.length }, 'Using cached Claude commands');
+    logger.debug(
+      { cached: true, count: commandsCache!.length },
+      "Using cached Claude commands",
+    );
     return commandsCache!;
   }
 
   const workingDir = getWorkingDirectory();
-  const commandsDir = join(workingDir, '.claude', 'commands');
+  const commandsDir = join(workingDir, ".claude", "commands");
 
   try {
     const files = await readdir(commandsDir);
@@ -178,19 +186,19 @@ export async function discoverClaudeCommands(): Promise<ClaudeCommand[]> {
     const validationErrors: string[] = [];
 
     for (const file of files) {
-      if (extname(file) !== '.md') {
+      if (extname(file) !== ".md") {
         continue;
       }
 
       const filePath = join(commandsDir, file);
-      const commandName = basename(file, '.md');
+      const commandName = basename(file, ".md");
 
       // Validate command name
       const validation = validateCommandName(commandName);
       let command: ClaudeCommand;
 
       try {
-        const content = await readFile(filePath, 'utf-8');
+        const content = await readFile(filePath, "utf-8");
         const { data } = parseFrontmatter(content);
 
         command = {
@@ -207,30 +215,34 @@ export async function discoverClaudeCommands(): Promise<ClaudeCommand[]> {
         if (validation.isValid) {
           logger.debug(
             { commandName, description: data.description },
-            'Discovered valid Claude command',
+            "Discovered valid Claude command",
           );
         } else {
           validationErrors.push(validation.error!);
           logger.warn(
             { commandName, error: validation.error },
-            'Discovered invalid Claude command',
+            "Discovered invalid Claude command",
           );
         }
       } catch (error) {
-        logger.warn({ file, error }, 'Failed to read Claude command file');
+        logger.warn({ file, error }, "Failed to read Claude command file");
       }
     }
 
     // Log summary with validation results
-    const validCommands = commands.filter(cmd => cmd.isValid);
-    const invalidCommands = commands.filter(cmd => !cmd.isValid);
+    const validCommands = commands.filter((cmd) => cmd.isValid);
+    const invalidCommands = commands.filter((cmd) => !cmd.isValid);
 
-    logger.info({
-      total: commands.length,
-      valid: validCommands.length,
-      invalid: invalidCommands.length,
-      validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
-    }, 'Discovered Claude commands with validation');
+    logger.info(
+      {
+        total: commands.length,
+        valid: validCommands.length,
+        invalid: invalidCommands.length,
+        validationErrors:
+          validationErrors.length > 0 ? validationErrors : undefined,
+      },
+      "Discovered Claude commands with validation",
+    );
 
     // Cache the results
     commandsCache = commands;
@@ -239,7 +251,7 @@ export async function discoverClaudeCommands(): Promise<ClaudeCommand[]> {
     return commands;
   } catch (error) {
     // Commands directory doesn't exist or isn't accessible
-    logger.debug({ commandsDir, error }, 'No Claude commands directory found');
+    logger.debug({ commandsDir, error }, "No Claude commands directory found");
 
     // Cache empty result to avoid repeated filesystem attempts
     commandsCache = [];
@@ -254,7 +266,7 @@ export async function discoverClaudeCommands(): Promise<ClaudeCommand[]> {
  */
 export async function getValidClaudeCommands(): Promise<ClaudeCommand[]> {
   const allCommands = await discoverClaudeCommands();
-  return allCommands.filter(cmd => cmd.isValid);
+  return allCommands.filter((cmd) => cmd.isValid);
 }
 
 /**
@@ -281,9 +293,11 @@ export async function getValidClaudeCommand(
 /**
  * Get command validation errors for debugging
  */
-export async function getCommandValidationErrors(): Promise<Array<{ name: string; error: string }>> {
+export async function getCommandValidationErrors(): Promise<
+  Array<{ name: string; error: string }>
+> {
   const commands = await discoverClaudeCommands();
   return commands
-    .filter(cmd => !cmd.isValid)
-    .map(cmd => ({ name: cmd.name, error: cmd.validationError! }));
+    .filter((cmd) => !cmd.isValid)
+    .map((cmd) => ({ name: cmd.name, error: cmd.validationError! }));
 }

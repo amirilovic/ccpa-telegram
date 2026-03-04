@@ -20,6 +20,7 @@ export async function textHandler(ctx: Context): Promise<void> {
   const logger = getLogger();
   const userId = ctx.from?.id;
   const messageText = ctx.message?.text;
+  const messageTimestamp = ctx.message?.date;
 
   if (!userId || !messageText) {
     return;
@@ -83,6 +84,7 @@ export async function textHandler(ctx: Context): Promise<void> {
       downloadsPath,
       sessionId,
       onProgress,
+      messageTimestamp,
     });
     logger.debug(
       { success: result.success, error: result.error },

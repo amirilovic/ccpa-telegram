@@ -43,32 +43,37 @@ function updateRateLimit(userId: number): void {
  * Sanitize command arguments to prevent injection attacks
  */
 function sanitizeArguments(args: string): string {
-  return args
-    // Remove or escape potentially dangerous sequences
-    .replace(/[<>]/g, '') // Remove HTML-like brackets
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/\${[^}]*}/g, '') // Remove variable interpolation patterns
-    .trim()
-    .slice(0, 1000); // Limit argument length
+  return (
+    args
+      // Remove or escape potentially dangerous sequences
+      .replace(/[<>]/g, "") // Remove HTML-like brackets
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Remove control characters
+      .replace(/\${[^}]*}/g, "") // Remove variable interpolation patterns
+      .trim()
+      .slice(0, 1000)
+  ); // Limit argument length
 }
 
 /**
  * Validate command execution context
  */
-function validateExecutionContext(ctx: Context): { isValid: boolean; error?: string } {
+function validateExecutionContext(ctx: Context): {
+  isValid: boolean;
+  error?: string;
+} {
   // Check for user ID
   if (!ctx.from?.id) {
-    return { isValid: false, error: 'Unable to identify user' };
+    return { isValid: false, error: "Unable to identify user" };
   }
 
   // Check for chat context
   if (!ctx.chat?.id) {
-    return { isValid: false, error: 'Invalid chat context' };
+    return { isValid: false, error: "Invalid chat context" };
   }
 
   // Check if user is a bot (prevent bot-to-bot interactions)
   if (ctx.from.is_bot) {
-    return { isValid: false, error: 'Bot users cannot execute commands' };
+    return { isValid: false, error: "Bot users cannot execute commands" };
   }
 
   return { isValid: true };
@@ -79,7 +84,7 @@ function validateExecutionContext(ctx: Context): { isValid: boolean; error?: str
  */
 class ProgressTracker {
   private lastUpdate = 0;
-  private lastMessage = '';
+  private lastMessage = "";
   private updateCount = 0;
   private readonly throttleMs = 2000;
   private readonly maxUpdates = 10;
@@ -87,7 +92,7 @@ class ProgressTracker {
   constructor(
     private ctx: Context,
     private statusMessageId: number,
-    private logger: any
+    private logger: any,
   ) {}
 
   async updateProgress(message: string): Promise<void> {
@@ -111,11 +116,14 @@ class ProgressTracker {
         this.ctx.chat!.id,
         this.statusMessageId,
         `_${message}_`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: "Markdown" },
       );
     } catch (error) {
       // Log error but don't fail the command execution
-      this.logger.debug({ error, message }, 'Failed to update progress message');
+      this.logger.debug(
+        { error, message },
+        "Failed to update progress message",
+      );
     }
   }
 
@@ -124,7 +132,7 @@ class ProgressTracker {
       await this.ctx.api.deleteMessage(this.ctx.chat!.id, this.statusMessageId);
     } catch (error) {
       // Deletion failures are not critical
-      this.logger.debug({ error }, 'Failed to delete status message');
+      this.logger.debug({ error }, "Failed to delete status message");
     }
   }
 }
@@ -148,18 +156,23 @@ export async function executeClaudeCommand(
   }
 
   const userId = ctx.from!.id;
-  logger.debug({
-    commandName,
-    args: args ? args.slice(0, 100) + (args.length > 100 ? '...' : '') : undefined,
-    userId,
-    username: ctx.from?.username,
-  }, 'Claude command execution requested');
+  logger.debug(
+    {
+      commandName,
+      args: args
+        ? args.slice(0, 100) + (args.length > 100 ? "..." : "")
+        : undefined,
+      userId,
+      username: ctx.from?.username,
+    },
+    "Claude command execution requested",
+  );
 
   // Check rate limiting
   if (isRateLimited(userId)) {
     await ctx.reply(
-      '⏳ Please wait a moment before executing another command.',
-      { parse_mode: 'Markdown' }
+      "⏳ Please wait a moment before executing another command.",
+      { parse_mode: "Markdown" },
     );
     return;
   }
@@ -171,11 +184,13 @@ export async function executeClaudeCommand(
     // Get and validate the Claude command
     const command = await getValidClaudeCommand(commandName);
     if (!command) {
-      await ctx.reply(
-        `❌ Command \`${commandName}\` not found or invalid.`,
-        { parse_mode: 'Markdown' }
+      await ctx.reply(`❌ Command \`${commandName}\` not found or invalid.`, {
+        parse_mode: "Markdown",
+      });
+      logger.warn(
+        { commandName },
+        "Attempted to execute non-existent or invalid command",
       );
-      logger.warn({ commandName }, 'Attempted to execute non-existent or invalid command');
       return;
     }
 
@@ -184,7 +199,10 @@ export async function executeClaudeCommand(
     if (args?.trim()) {
       sanitizedArgs = sanitizeArguments(args.trim());
       if (sanitizedArgs !== args.trim()) {
-        logger.info({ commandName, userId }, 'Command arguments were sanitized');
+        logger.info(
+          { commandName, userId },
+          "Command arguments were sanitized",
+        );
       }
     }
 
@@ -194,10 +212,10 @@ export async function executeClaudeCommand(
     try {
       await ensureUserSetup(userDir);
     } catch (setupError) {
-      logger.error({ error: setupError, userId, userDir }, 'User setup failed');
+      logger.error({ error: setupError, userId, userDir }, "User setup failed");
       await ctx.reply(
-        '❌ Failed to set up user environment. Please try again later.',
-        { parse_mode: 'Markdown' }
+        "❌ Failed to set up user environment. Please try again later.",
+        { parse_mode: "Markdown" },
       );
       return;
     }
@@ -213,14 +231,18 @@ export async function executeClaudeCommand(
     const downloadsPath = getDownloadsPath(userDir);
 
     // Send initial status message
-    const statusMsg = await ctx.reply('_Executing command..._', {
-      parse_mode: 'Markdown',
+    const statusMsg = await ctx.reply("_Executing command..._", {
+      parse_mode: "Markdown",
     });
 
-    const progressTracker = new ProgressTracker(ctx, statusMsg.message_id, logger);
+    const progressTracker = new ProgressTracker(
+      ctx,
+      statusMsg.message_id,
+      logger,
+    );
 
     // Execute the Claude command with enhanced error handling
-    logger.debug({ commandName, userId }, 'Starting Claude command execution');
+    logger.debug({ commandName, userId }, "Starting Claude command execution");
 
     const startTime = Date.now();
     let result;
@@ -231,23 +253,29 @@ export async function executeClaudeCommand(
         userDir,
         downloadsPath,
         sessionId,
-        onProgress: (message: string) => progressTracker.updateProgress(message),
+        onProgress: (message: string) =>
+          progressTracker.updateProgress(message),
       });
     } catch (executionError) {
-      logger.error({
-        error: executionError,
-        commandName,
-        userId,
-        prompt: prompt.slice(0, 200),
-      }, 'Claude command execution failed');
+      logger.error(
+        {
+          error: executionError,
+          commandName,
+          userId,
+          prompt: prompt.slice(0, 200),
+        },
+        "Claude command execution failed",
+      );
 
       await progressTracker.cleanup();
 
       await ctx.reply(
         `❌ Failed to execute command \`${commandName}\`.\n\nError: ${
-          executionError instanceof Error ? executionError.message : String(executionError)
+          executionError instanceof Error
+            ? executionError.message
+            : String(executionError)
         }`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: "Markdown" },
       );
       return;
     }
@@ -261,24 +289,24 @@ export async function executeClaudeCommand(
     if (result.sessionId) {
       try {
         await saveSessionId(userDir, result.sessionId);
-        logger.debug({ sessionId: result.sessionId }, 'Session saved');
+        logger.debug({ sessionId: result.sessionId }, "Session saved");
       } catch (sessionError) {
-        logger.warn({ error: sessionError }, 'Failed to save session ID');
+        logger.warn({ error: sessionError }, "Failed to save session ID");
       }
     }
 
     // Send the response with improved formatting
     const responseText = result.success
       ? result.output
-      : result.error || 'An error occurred executing the command';
+      : result.error || "An error occurred executing the command";
 
     try {
       await sendChunkedResponse(ctx, responseText);
     } catch (responseError) {
-      logger.error({ error: responseError }, 'Failed to send command response');
+      logger.error({ error: responseError }, "Failed to send command response");
       await ctx.reply(
-        '❌ Command executed but failed to send response. Please try again.',
-        { parse_mode: 'Markdown' }
+        "❌ Command executed but failed to send response. Please try again.",
+        { parse_mode: "Markdown" },
       );
       return;
     }
@@ -288,40 +316,48 @@ export async function executeClaudeCommand(
     try {
       filesSent = await sendDownloadFiles(ctx, userDir);
       if (filesSent > 0) {
-        logger.info({ filesSent, commandName, userId }, 'Sent download files to user');
+        logger.info(
+          { filesSent, commandName, userId },
+          "Sent download files to user",
+        );
       }
     } catch (fileError) {
-      logger.warn({ error: fileError }, 'Failed to send download files');
+      logger.warn({ error: fileError }, "Failed to send download files");
     }
 
     // Log successful completion with metrics
-    logger.info({
-      commandName,
-      args: sanitizedArgs,
-      userId,
-      username: ctx.from?.username,
-      success: result.success,
-      executionTimeMs: executionTime,
-      filesSent,
-      outputLength: responseText.length,
-    }, 'Claude command executed successfully');
-
+    logger.info(
+      {
+        commandName,
+        args: sanitizedArgs,
+        userId,
+        username: ctx.from?.username,
+        success: result.success,
+        executionTimeMs: executionTime,
+        filesSent,
+        outputLength: responseText.length,
+      },
+      "Claude command executed successfully",
+    );
   } catch (error) {
     // Top-level error handler for unexpected errors
-    logger.error({
-      error,
-      commandName,
-      args,
-      userId,
-    }, 'Unexpected error in executeClaudeCommand');
+    logger.error(
+      {
+        error,
+        commandName,
+        args,
+        userId,
+      },
+      "Unexpected error in executeClaudeCommand",
+    );
 
     try {
       await ctx.reply(
         `❌ An unexpected error occurred while executing \`${commandName}\`. Please try again later.`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: "Markdown" },
       );
     } catch (replyError) {
-      logger.error({ error: replyError }, 'Failed to send error reply');
+      logger.error({ error: replyError }, "Failed to send error reply");
     }
   }
 }

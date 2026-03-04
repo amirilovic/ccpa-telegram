@@ -49,6 +49,7 @@ export async function voiceHandler(ctx: Context): Promise<void> {
   const logger = getLogger();
   const userId = ctx.from?.id;
   const voice = ctx.message?.voice;
+  const messageTimestamp = ctx.message?.date;
 
   if (!userId || !voice) {
     return;
@@ -173,6 +174,7 @@ export async function voiceHandler(ctx: Context): Promise<void> {
       downloadsPath,
       sessionId,
       onProgress,
+      messageTimestamp,
     });
 
     // Delete status message

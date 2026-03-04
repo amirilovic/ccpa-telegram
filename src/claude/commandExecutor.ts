@@ -35,6 +35,7 @@ export async function executeClaudeCommand(
   }
 
   const userId = ctx.from?.id;
+  const messageTimestamp = ctx.message?.date;
   if (!userId) {
     await ctx.reply("❌ Unable to identify user.");
     return;
@@ -91,6 +92,7 @@ export async function executeClaudeCommand(
       downloadsPath,
       sessionId,
       onProgress,
+      messageTimestamp,
     });
 
     // Delete status message
