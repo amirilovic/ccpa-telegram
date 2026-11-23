@@ -1,5 +1,7 @@
 # ccpa-telegram
 
+> **This project is no longer maintained.** Use [IronPet](https://github.com/irtazahashmi/ironpet) instead. IronPet is the maintained project for setting up a personal assistant with Claude Code. It has a dedicated mobile app and can connect to Telegram.
+
 A Telegram bot that provides access to Claude Code as a personal assistant. Run Claude Code in any directory and interact with it through Telegram.
 
 ## Features
